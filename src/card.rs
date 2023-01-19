@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Suit {
+    UnSuited,
     Spade,
     Diamond,
     Heart,
@@ -21,6 +22,7 @@ impl Display for Suit {
             Suit::Diamond => write!(f, "♢"),
             Suit::Heart => write!(f, "♡"),
             Suit::Clover => write!(f, "♧"),
+            Suit::UnSuited => write!(f, "?"),
         }
     }
 }

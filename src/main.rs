@@ -7,7 +7,7 @@ pub mod deck;
 
 fn main() -> Result<()> {
     let mut players: Vec<Player> = Player::distribute(3, 2);
-    let mut game = Game::new(&players);
+    let mut game = Game::new();
     game.run(&mut players)?;
     Ok(())
 }
