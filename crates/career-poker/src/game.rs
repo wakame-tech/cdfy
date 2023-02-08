@@ -1,7 +1,7 @@
 use super::effects::{cards::Revolution, DefaultCareerPokerRiverGuard, Effect};
-use crate::deck::Deck;
 use anyhow::Result;
 use inquire::MultiSelect;
+use playing_card::deck::Deck;
 use std::{collections::HashMap, fmt::Display};
 
 /// `Action` is a minimal unit of operationg `Game`

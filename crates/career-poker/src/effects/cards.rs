@@ -1,5 +1,5 @@
 use super::Effect;
-use crate::career_poker::game::{Action, Game};
+use crate::game::{Action, Game};
 use anyhow::Result;
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use super::game::{Action, Game};
-use crate::{card::Card, deck::Deck};
 use anyhow::{anyhow, Result};
+use playing_card::{card::Card, deck::Deck};
 use std::{cmp::Ordering, collections::HashSet, fmt::Debug};
 pub mod cards;
 

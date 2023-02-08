@@ -1,9 +1,7 @@
 use anyhow::Result;
-use career_poker::game::Game;
-
-pub mod card;
-pub mod career_poker;
-pub mod deck;
+use game::Game;
+pub mod effects;
+pub mod game;
 
 fn main() -> Result<()> {
     let mut game = Game::new(3);
