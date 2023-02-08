@@ -1,13 +1,12 @@
-use all_roles_career_poker::{Game, Player};
 use anyhow::Result;
+use career_poker::game::Game;
 
-pub mod all_roles_career_poker;
 pub mod card;
+pub mod career_poker;
 pub mod deck;
 
 fn main() -> Result<()> {
-    let mut players: Vec<Player> = Player::distribute(3, 2);
-    let mut game = Game::new();
-    game.run(&mut players)?;
+    let mut game = Game::new(3);
+    game.run()?;
     Ok(())
 }
