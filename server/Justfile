@@ -1,0 +1,8 @@
+set dotenv-load
+project := env_var('PROJECT_ID')
+
+default:
+    deno run -A server.ts
+
+deploy:
+    deployctl deploy --prod --project={{project}} ./server.ts

@@ -1,11 +1,9 @@
 [workspace]
 members = [
-    "./crates/playing-card",
-    "./crates/career-poker",
+    "./crates/cdfy-binding-gen",
+    "./crates/cdfy-sdk",
 ]
 exclude = [
-    "./crates/runtime",
-    "./crates/plugin-bindings",
-    "./crates/example-protocol",
-    "./crates/example-plugin"
+    "./crates/career-poker",
+    "./crates/counter",
 ]
