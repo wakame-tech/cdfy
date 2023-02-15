@@ -29,9 +29,9 @@ export const useGameState = <T>(roomId: string | null) => {
     }
   }, [])
 
-  const action = (id: string) => {
+  const action = (id: string, value: unknown) => {
     console.log(id)
-    socket.emit('action', roomId, id)
+    socket.emit('action', roomId, id, value)
   }
 
   return {

@@ -9,7 +9,7 @@ export const Counter = (props: { roomId: string }) => {
   const { state, action } = useGameState<Data>(props.roomId)
 
   const onClick = (id: string) => {
-    action(id)
+    action(id, {})
   }
 
   return (

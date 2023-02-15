@@ -1,3 +1,7 @@
+default:
+    just plugin career-poker
+    cd server && just run
+
 gen:
     cd ./crates/cdfy-binding-gen && cargo run
 

@@ -27,9 +27,7 @@ io.on('connection', (socket) => {
       if (!room) {
         return
       }
-      console.log(
-        `[join] socket=${socket.id} joined room=${roomId} players=${room.players.size}`
-      )
+      console.log(`[join] socket=${socket.id} joined room=${roomId}`)
       io.to(roomId).emit('update', room)
     } else {
       socket.join(roomId)
@@ -46,9 +44,15 @@ io.on('connection', (socket) => {
     }
   })
 
-  socket.on('action', async (roomId: string, id: string) => {
-    console.log(`[action] socket=${socket.id} room=${roomId}, id=${id}`)
-    const room = await usecase.onClick(socket.id, roomId.toString(), id)
+  socket.on('action', async (roomId: string, id: string, value: unknown) => {
+    console.log(
+      `[action] socket=${
+        socket.id
+      } room=${roomId}, id=${id}, value=${JSON.stringify(value)}`
+    )
+    const room = await usecase
+      .onClick(socket.id, roomId.toString(), id, value)
+      .catch((e) => console.error(e))
     io.to(roomId).emit('update', room)
   })
 

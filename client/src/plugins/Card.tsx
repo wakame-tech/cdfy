@@ -22,22 +22,27 @@ const isRed = (card: Card): boolean => {
 
 export interface CardProps {
   card: Card
+  selected: boolean
   onClick?: () => void
 }
 
 export const CardView = (props: CardProps) => {
   return (
-    <span
-      onClick={(e) => props.onClick?.()}
-      style={{
-        color: isRed(props.card) ? 'red' : 'black',
-        fontSize: '100px',
-        margin: '0px',
-        padding: '0px',
-        userSelect: 'none',
-      }}
-    >
-      {card(props.card)}
-    </span>
+    <>
+      <span
+        onClick={(e) => props.onClick?.()}
+        style={{
+          display: 'inline-block',
+          lineHeight: '1em',
+          color: isRed(props.card) ? 'red' : 'black',
+          fontSize: '100px',
+          border: props.selected ? '3px solid blue' : '',
+          borderRadius: '10px',
+          userSelect: 'none',
+        }}
+      >
+        {card(props.card)}
+      </span>
+    </>
   )
 }

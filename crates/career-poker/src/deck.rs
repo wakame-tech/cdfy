@@ -1,5 +1,5 @@
 use crate::card::{Card, Suit};
-use rand::{seq::SliceRandom, thread_rng};
+use cdfy_sdk::rand;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -30,7 +30,6 @@ impl Deck {
     }
 
     pub fn with_jokers(jokers: usize) -> Self {
-        let mut rng = thread_rng();
         let mut deck = vec![];
         for suit in Suit::suits().iter() {
             for number in 1u8..=13 {
@@ -40,13 +39,16 @@ impl Deck {
         for _ in 0..jokers {
             deck.push(Card::Joker)
         }
-        deck.shuffle(&mut rng);
-        Self(deck)
+        let mut ret = Self(deck);
+        ret.shuffle();
+        ret
     }
 
     pub fn shuffle(&mut self) {
-        let mut rng = thread_rng();
-        self.0.shuffle(&mut rng);
+        let l = self.0.len();
+        for i in 0..l {
+            self.0.swap(i, (rand() % l as u32) as usize);
+        }
     }
 
     pub fn dejoker(cards: &Vec<Card>) -> Vec<Card> {
@@ -72,10 +74,10 @@ impl Deck {
 
 impl std::ops::SubAssign for Deck {
     fn sub_assign(&mut self, rhs: Self) {
-        let indices = self
+        let indices = rhs
             .0
             .iter()
-            .map(|c| rhs.0.iter().position(|h| h == c))
+            .map(|c| self.0.iter().position(|h| h == c))
             .collect::<Option<Vec<_>>>()
             .unwrap_or_default();
         *self = Deck(
@@ -86,5 +88,18 @@ impl std::ops::SubAssign for Deck {
                 .map(|(_, c)| c.clone())
                 .collect(),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Deck;
+
+    #[test]
+    fn test_sub_assign() {
+        let mut a = Deck(vec!["Ah".into(), "2h".into()]);
+        let b = Deck(vec!["Ah".into()]);
+        a -= b;
+        assert_eq!(a, Deck(vec!["2h".into()]));
     }
 }

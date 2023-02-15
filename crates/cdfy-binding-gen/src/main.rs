@@ -15,7 +15,9 @@ pub struct PluginMeta {
     pub version: String,
 }
 
-fp_import! {}
+fp_import! {
+    fn rand() -> u32;
+}
 
 fp_export! {
     /// returns plugin meta infomation
@@ -27,8 +29,11 @@ fp_export! {
     /// fire when join a player
     fn on_join_player(player_id: String, state: State) -> State;
 
+    /// fire when leave a player
+    fn on_leave_player(player_id: String, state: State) -> State;
+
     /// fire when elements clicked
-    fn on_click(player_id: String, id: String, state: State) -> State;
+    fn on_click(player_id: String, id: String, state: State, value: String) -> State;
 }
 
 static PLUGIN_DEPENDENCIES: Lazy<BTreeMap<&str, CargoDependency>> = Lazy::new(|| {

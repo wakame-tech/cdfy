@@ -3,7 +3,6 @@ import { Counter } from './plugins/Counter'
 
 function App() {
   const roomId = new URLSearchParams(location.search).get('room') ?? 'global'
-
   return (
     <div className='App'>
       <p>roomId={roomId}</p>

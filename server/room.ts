@@ -1,10 +1,9 @@
 import { getPlugin } from './plugin.ts'
-import { State } from './gen/types.ts'
+import { Result, State } from './gen/types.ts'
 
 export interface Room {
   plugin: string
   state: State
-  players: Set<string>
 }
 export const rooms: Record<string, Room> = {}
 
@@ -41,7 +40,6 @@ export class RoomService implements IRoomService {
     }
     rooms[roomId] = {
       plugin,
-      players: new Set([playerId]),
       state,
     }
     return rooms[roomId]
@@ -61,7 +59,6 @@ export class RoomService implements IRoomService {
       return Promise.reject('state is null')
     }
     room.state = state
-    room.players.add(playerId)
     return Promise.resolve(room)
   }
 
@@ -71,12 +68,24 @@ export class RoomService implements IRoomService {
       return Promise.reject(`room ${roomId} is null`)
     }
     console.log(`[leave] room ${roomId} leavePlayer ${playerId}`)
-    room.players.delete(playerId)
-    console.log(`${rooms[roomId].players.size}`)
+    const runtime = getPlugin(room.plugin)
+    if (!runtime) {
+      return Promise.reject(`plugin ${room.plugin} not found`)
+    }
+    const state = runtime.onLeavePlayer?.(playerId, room.state)
+    if (!state) {
+      return Promise.reject('state is null')
+    }
+    room.state = state
     return room
   }
 
-  async onClick(playerId: string, roomId: string, id: string): Promise<Room> {
+  async onClick(
+    playerId: string,
+    roomId: string,
+    id: string,
+    value: unknown
+  ): Promise<Room> {
     const room = rooms[roomId]
     if (!room) {
       return Promise.reject(`room ${roomId} is null`)
@@ -85,7 +94,20 @@ export class RoomService implements IRoomService {
     if (!runtime) {
       return Promise.reject(`plugin ${room.plugin} not found`)
     }
-    const state = runtime.onClick?.(playerId, id, room.state)
+    console.log(value)
+    const state = await new Promise<State | undefined>((resolve, reject) => {
+      try {
+        const state = runtime.onClick?.(
+          playerId,
+          id,
+          room.state,
+          JSON.stringify(value)
+        )
+        resolve(state)
+      } catch (e) {
+        reject(e)
+      }
+    }).catch((e) => console.error(e))
     if (!state) {
       return Promise.reject('state is null')
     }
