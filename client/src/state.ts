@@ -35,6 +35,7 @@ export const useGameState = <T>(roomId: string | null) => {
   }
 
   return {
+    id: socket.id,
     state,
     roomId,
     action,

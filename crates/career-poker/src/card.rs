@@ -4,10 +4,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Suit {
+    #[serde(rename = "?")]
     UnSuited,
+    #[serde(rename = "s")]
     Spade,
+    #[serde(rename = "d")]
     Diamond,
+    #[serde(rename = "h")]
     Heart,
+    #[serde(rename = "c")]
     Clover,
 }
 
@@ -51,9 +56,9 @@ impl Card {
     }
 }
 
-impl From<&String> for Card {
+impl From<&str> for Card {
     // A-K,shdc
-    fn from(e: &String) -> Self {
+    fn from(e: &str) -> Self {
         if e == "joker" {
             return Card::Joker;
         }

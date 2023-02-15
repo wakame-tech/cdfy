@@ -1,36 +1,43 @@
-const card = (expr: string): string => {
+export type Card =
+  | {
+      Number: ['s' | 'h' | 'd' | 'c', number]
+    }
+  | 'Joker'
+
+const card = (card: Card): string => {
   const playingCards = [
     ...'🂠🂡🂢🂣🂤🂥🂦🂧🂨🂩🂪🂫🂭🂮🂱🂲🂳🂴🂵🂶🂷🂸🂹🂺🂻🂽🂾🃁🃂🃃🃄🃅🃆🃇🃈🃉🃊🃋🃍🃎🃑🃒🃓🃔🃕🃖🃗🃘🃙🃚🃛🃝🃞🃟',
   ]
-  if (!expr) {
-    return playingCards[0]
-  }
-  if (expr === 'joker') {
+
+  if (card === 'Joker') {
     return playingCards[playingCards.length - 1]
   }
-  const suit = 'shdc'.indexOf(expr[1])
-  const number = 'A23456789TJQK'.indexOf(expr[0])
-  return playingCards[1 + suit * 13 + number]
+  const suit = 'shdc'.indexOf(card['Number'][0])
+  return playingCards[1 + suit * 13 + (card['Number'][1] - 1)]
+}
+
+const isRed = (card: Card): boolean => {
+  return card !== 'Joker' && /[hd]/.test(card['Number'][0])
 }
 
 export interface CardProps {
-  expr: string
-  onClick: () => void
+  card: Card
+  onClick?: () => void
 }
 
-export const Card = (props: CardProps) => {
+export const CardView = (props: CardProps) => {
   return (
     <span
-      onClick={(e) => props.onClick()}
+      onClick={(e) => props.onClick?.()}
       style={{
-        color: props.expr[1].match(/[hd]/) ? 'red' : 'black',
+        color: isRed(props.card) ? 'red' : 'black',
         fontSize: '100px',
         margin: '0px',
         padding: '0px',
         userSelect: 'none',
       }}
     >
-      {card(props.expr)}
+      {card(props.card)}
     </span>
   )
 }

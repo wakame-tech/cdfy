@@ -3,5 +3,5 @@ gen:
 
 plugin name:
     cd ./crates/{{name}} && cargo build --target=wasm32-unknown-unknown
-    wasmer inspect ./crates/{{name}}/target/wasm32-unknown-unknown/debug/{{name}}.wasm
-    cp ./crates/{{name}}/target/wasm32-unknown-unknown/debug/{{name}}.wasm ./server
+    wasmer inspect ./crates/{{name}}/target/wasm32-unknown-unknown/debug/*.wasm
+    cp ./crates/{{name}}/target/wasm32-unknown-unknown/debug/*.wasm ./server

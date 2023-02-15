@@ -1,4 +1,4 @@
-import { Card } from './plugins/Card'
+import { CarrerPoker } from './plugins/CareerPoker'
 import { Counter } from './plugins/Counter'
 
 function App() {
@@ -7,10 +7,8 @@ function App() {
   return (
     <div className='App'>
       <p>roomId={roomId}</p>
-      <Counter roomId={roomId} />
-
-      <Card onClick={() => alert('a')} expr='Ah' />
-      <Card onClick={() => alert('a')} expr='As' />
+      {/* <Counter roomId={roomId} /> */}
+      <CarrerPoker roomId={roomId} />
     </div>
   )
 }

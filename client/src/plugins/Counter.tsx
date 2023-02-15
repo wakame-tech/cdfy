@@ -16,7 +16,7 @@ export const Counter = (props: { roomId: string }) => {
     <div className='App'>
       <p>{state?.count}</p>
       {state?.actions.map((id) => (
-        <button onClick={(e) => onClick(id)}>+1</button>
+        <button onClick={(e) => onClick(id)}>{id}</button>
       ))}
     </div>
   )

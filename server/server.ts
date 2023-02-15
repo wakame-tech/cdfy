@@ -4,6 +4,7 @@ import { RoomService } from './room.ts'
 import { registerPluginFromLocal } from './plugin.ts'
 
 await registerPluginFromLocal('./counter.wasm')
+await registerPluginFromLocal('./career_poker.wasm')
 
 const io = new Server({
   connectTimeout: 5000,
@@ -32,8 +33,10 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('update', room)
     } else {
       socket.join(roomId)
+      // const plugin = 'counter'
+      const plugin = 'career-poker'
       const room = await usecase
-        .createRoom(socket.id, roomId, 'counter')
+        .createRoom(socket.id, roomId, plugin)
         .catch((e) => console.error(e))
       if (!room) {
         return
@@ -65,4 +68,7 @@ io.on('connection', (socket) => {
 
 await serve(io.handler(), {
   port: 8080,
+  onListen({ port, hostname }) {
+    console.log(`Server started at http://${hostname}:${port}`)
+  },
 })
