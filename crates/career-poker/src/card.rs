@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Suit {
     #[serde(rename = "?")]
     UnSuited,
@@ -37,21 +37,24 @@ impl Display for Suit {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Card {
     Number(Suit, u8),
-    Joker,
+    Joker(Option<(Suit, u8)>),
 }
 
 impl Card {
-    pub fn suit(&self) -> Option<Suit> {
+    /// if joker, returns unsuited
+    pub fn suit(&self) -> Suit {
         match self {
-            Card::Number(s, _) => Some(s.clone()),
-            Card::Joker => None,
+            Card::Number(s, _) => s.clone(),
+            Card::Joker(Some((s, _))) => s.clone(),
+            Card::Joker(None) => Suit::UnSuited,
         }
     }
 
     pub fn number(&self) -> Option<u8> {
         match self {
-            Card::Joker => None,
             Card::Number(_, n) => Some(*n),
+            Card::Joker(Some((_, n))) => Some(*n),
+            Card::Joker(None) => None,
         }
     }
 }
@@ -60,7 +63,7 @@ impl From<&str> for Card {
     // A-K,shdc
     fn from(e: &str) -> Self {
         if e == "joker" {
-            return Card::Joker;
+            return Card::Joker(None);
         }
         let chars = e.chars().collect::<Vec<char>>();
         let n: u8 = match chars[0] {
@@ -96,7 +99,8 @@ impl Display for Card {
         }
         match self {
             Card::Number(suit, number) => write!(f, "{}{}", s(*number), suit),
-            Card::Joker => write!(f, "joker"),
+            Card::Joker(None) => write!(f, "joker"),
+            Card::Joker(Some((suit, number))) => write!(f, "joker(as {}{})", s(*number), suit),
         }
     }
 }

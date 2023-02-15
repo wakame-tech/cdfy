@@ -6,6 +6,7 @@ use state::CareerPokerState;
 
 pub mod card;
 pub mod deck;
+pub mod effect;
 pub mod game;
 pub mod state;
 
@@ -49,6 +50,23 @@ pub fn on_click(player_id: String, id: String, state: State, value: String) -> S
     let mut state: CareerPokerState = state.into();
     match id.as_str() {
         "distribute" => state.distribute(),
+        "pass" => state.pass(player_id),
+        "one_chance" => {
+            let cards: Vec<Card> = serde_json::from_str(&value).unwrap();
+            state.one_chance(player_id, cards);
+        }
+        "select_trushes" => {
+            let cards: Vec<Card> = serde_json::from_str(&value).unwrap();
+            state.select_trushes(player_id, cards);
+        }
+        "select_passes" => {
+            let cards: Vec<Card> = serde_json::from_str(&value).unwrap();
+            state.select_excluded(player_id, cards);
+        }
+        "select_excluded" => {
+            let cards: Vec<Card> = serde_json::from_str(&value).unwrap();
+            state.select_excluded(player_id, cards);
+        }
         "serve" => {
             let cards: Vec<Card> = serde_json::from_str(&value).unwrap();
             state.serve(player_id, Deck(cards));

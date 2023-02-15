@@ -2,14 +2,16 @@ export type Card =
   | {
       Number: ['s' | 'h' | 'd' | 'c', number]
     }
-  | 'Joker'
+  | {
+      Joker: ['s' | 'h' | 'd' | 'c', number] | null
+    }
 
 const card = (card: Card): string => {
   const playingCards = [
     ...'🂠🂡🂢🂣🂤🂥🂦🂧🂨🂩🂪🂫🂭🂮🂱🂲🂳🂴🂵🂶🂷🂸🂹🂺🂻🂽🂾🃁🃂🃃🃄🃅🃆🃇🃈🃉🃊🃋🃍🃎🃑🃒🃓🃔🃕🃖🃗🃘🃙🃚🃛🃝🃞🃟',
   ]
 
-  if (card === 'Joker') {
+  if ('Joker' in card) {
     return playingCards[playingCards.length - 1]
   }
   const suit = 'shdc'.indexOf(card['Number'][0])
@@ -17,7 +19,11 @@ const card = (card: Card): string => {
 }
 
 const isRed = (card: Card): boolean => {
-  return card !== 'Joker' && /[hd]/.test(card['Number'][0])
+  if ('Number' in card) {
+    return /[hd]/.test(card['Number'][0])
+  } else {
+    return false
+  }
 }
 
 export interface CardProps {
@@ -36,7 +42,7 @@ export const CardView = (props: CardProps) => {
           lineHeight: '1em',
           color: isRed(props.card) ? 'red' : 'black',
           fontSize: '100px',
-          border: props.selected ? '3px solid blue' : '',
+          backgroundColor: props.selected ? '#ecc' : '',
           borderRadius: '10px',
           userSelect: 'none',
         }}

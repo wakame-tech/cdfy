@@ -37,7 +37,7 @@ impl Deck {
             }
         }
         for _ in 0..jokers {
-            deck.push(Card::Joker)
+            deck.push(Card::Joker(None))
         }
         let mut ret = Self(deck);
         ret.shuffle();
