@@ -1,20 +1,32 @@
 use crate::card::{Card, Suit};
 use cdfy_sdk::rand;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+use std::{
+    collections::HashSet,
+    fmt::{Display, Formatter},
+};
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
-pub struct Deck(pub Vec<Card>);
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum DeckStyle {
+    Arrange,
+    Stack,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Deck {
+    pub style: DeckStyle,
+    pub cards: Vec<Card>,
+}
 
 impl Display for Deck {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.0.is_empty() {
+        if self.cards.is_empty() {
             write!(f, "(empty)")
         } else {
             write!(
                 f,
                 "[{}]",
-                self.0
+                self.cards
                     .iter()
                     .map(|e| e.to_string())
                     .collect::<Vec<_>>()
@@ -24,82 +36,80 @@ impl Display for Deck {
     }
 }
 
+pub fn with_jokers(jokers: usize) -> Vec<Card> {
+    let mut cards = vec![];
+    for suit in Suit::suits().iter() {
+        for number in 1u8..=13 {
+            cards.push(Card::Number(suit.clone(), number))
+        }
+    }
+    for _ in 0..jokers {
+        cards.push(Card::Joker(None))
+    }
+    shuffle(&mut cards);
+    cards
+}
+
+pub fn shuffle<T>(items: &mut Vec<T>) {
+    let l = items.len();
+    for i in 0..l {
+        items.swap(i, (rand() % l as u32) as usize);
+    }
+}
+
+pub fn is_same_number(cards: &Vec<Card>) -> bool {
+    let numbers: HashSet<_> = cards.iter().filter_map(|c| c.number()).collect();
+    // if only jokers, len == 0
+    numbers.len() <= 1
+}
+
+pub fn numbers(cards: &Vec<Card>) -> HashSet<u8> {
+    cards
+        .iter()
+        .filter_map(|c| c.number())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect::<HashSet<_>>()
+}
+
+/// returns cards number, if only jokers, returns 14
+pub fn number(cards: &Vec<Card>) -> u8 {
+    numbers(cards).into_iter().next().unwrap_or(14)
+}
+
+pub fn suits(cards: &Vec<Card>) -> HashSet<Suit> {
+    cards
+        .iter()
+        .map(|c| c.suit())
+        .filter(|s| s != &Suit::UnSuited)
+        .collect::<HashSet<_>>()
+}
+
+/// `other` contains all suits of `self`
+pub fn match_suits(lhs: &Vec<Card>, rhs: &Vec<Card>) -> bool {
+    let (lhs, rhs) = (suits(lhs), suits(rhs));
+    rhs.is_superset(&lhs)
+}
+
+pub fn remove_items<T: Eq + Clone>(items: &mut Vec<T>, removes: &Vec<T>) {
+    let indices = removes
+        .iter()
+        .map(|c| items.iter().position(|h| h == c))
+        .collect::<Option<Vec<_>>>()
+        .unwrap_or_default();
+    *items = items
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !indices.contains(i))
+        .map(|(_, c)| c.clone())
+        .collect();
+}
+
 impl Deck {
     pub fn new() -> Self {
-        Self(vec![])
-    }
-
-    pub fn with_jokers(jokers: usize) -> Self {
-        let mut deck = vec![];
-        for suit in Suit::suits().iter() {
-            for number in 1u8..=13 {
-                deck.push(Card::Number(suit.clone(), number))
-            }
+        Self {
+            style: DeckStyle::Arrange,
+            cards: vec![],
         }
-        for _ in 0..jokers {
-            deck.push(Card::Joker(None))
-        }
-        let mut ret = Self(deck);
-        ret.shuffle();
-        ret
-    }
-
-    pub fn shuffle(&mut self) {
-        let l = self.0.len();
-        for i in 0..l {
-            self.0.swap(i, (rand() % l as u32) as usize);
-        }
-    }
-
-    pub fn dejoker(cards: &Vec<Card>) -> Vec<Card> {
-        let mut numbers: Vec<_> = cards
-            .iter()
-            .filter(|c| c.number().is_some())
-            .cloned()
-            .collect();
-        let jokers: Vec<_> = cards
-            .iter()
-            .filter(|c| c.number().is_none())
-            .cloned()
-            .collect();
-        if numbers.is_empty() {
-            cards.clone()
-        } else {
-            let n = numbers.first().unwrap().number().unwrap();
-            numbers.extend(jokers.iter().map(|_c| Card::Number(Suit::UnSuited, n)));
-            numbers
-        }
-    }
-}
-
-impl std::ops::SubAssign for Deck {
-    fn sub_assign(&mut self, rhs: Self) {
-        let indices = rhs
-            .0
-            .iter()
-            .map(|c| self.0.iter().position(|h| h == c))
-            .collect::<Option<Vec<_>>>()
-            .unwrap_or_default();
-        *self = Deck(
-            self.0
-                .iter()
-                .enumerate()
-                .filter(|(i, _)| !indices.contains(i))
-                .map(|(_, c)| c.clone())
-                .collect(),
-        );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Deck;
-
-    #[test]
-    fn test_sub_assign() {
-        let mut a = Deck(vec!["Ah".into(), "2h".into()]);
-        let b = Deck(vec!["Ah".into()]);
-        a -= b;
-        assert_eq!(a, Deck(vec!["2h".into()]));
     }
 }
