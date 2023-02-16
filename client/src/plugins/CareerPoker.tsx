@@ -1,29 +1,65 @@
 import { useState } from 'react'
-import { useGameState } from '../state'
-import { Card } from './Card'
-import { Deck, useSelects } from './Deck'
+import { usePlugin } from '../state'
+import { Suit, Card } from '../component/CardView'
+import { Button } from '../component/Button'
+import { DeckView, Deck, defaultDeck, useSelects } from '../component/DeckView'
 
-export interface Data {
-  current: string | null
-  actions: string[]
-  players: string[]
-  excluded: Card[]
-  river: Card[][]
-  trushes: Card[]
-  fields: Record<string, Card[]>
-  last_served_player_id: string | null
+type Rpc =
+  | 'Distribute'
+  | 'Pass'
+  | {
+      OneChance: { serves: Card[] }
+    }
+  | {
+      SelectTrushes: {
+        serves: Card[]
+      }
+    }
+  | {
+      SelectPasses: {
+        serves: Card[]
+      }
+    }
+  | {
+      SelectExcluded: {
+        serves: Card[]
+      }
+    }
+  | {
+      Serve: {
+        serves: Card[]
+      }
+    }
+
+interface Effect {
   river_size: number | null
-  effect: {}
-  prompt_4_player_id: string | null
-  prompt_7_player_id: string | null
-  prompt_13_player_id: string | null
-  prompt_1_player_ids: string[]
+  suit_limits: Suit[]
+  effect_limits: number[]
+  turn_revoluted: boolean
+  is_step: boolean
+  revoluted: boolean
+}
+
+interface State {
+  current: string | null
+  players: string[]
+  excluded: Deck
+  trushes: Deck
+  river: Deck[]
+  last_served_player_id: string | null
+  fields: Record<string, Deck>
+  river_size: number | null
+  effect: Effect
+  prompts: Record<string, string>
 }
 
 export const CarrerPoker = (props: { roomId: string }) => {
   const [isDebug, setDebug] = useState(true)
-  const { id, state, action } = useGameState<Data>(props.roomId)
-  const hands = state?.fields[id] ?? []
+  const { id, state, rpc } = usePlugin<State, Rpc>(props.roomId)
+
+  const hands = state?.fields[id] ?? defaultDeck()
+  const river = state?.river[state?.river.length - 1] ?? defaultDeck()
+
   const {
     selects: selectedHands,
     toggle: toggleHand,
@@ -44,35 +80,6 @@ export const CarrerPoker = (props: { roomId: string }) => {
     return <div></div>
   }
 
-  const selectTrushes = () => {
-    const cards = selectedTrushes.map((i) => state.trushes[i])
-    action('select_trushes', cards)
-    resetTrushes()
-  }
-
-  const selectExcludes = () => {
-    const cards = selectedExcludes.map((i) => state.excluded[i])
-    action('select_excluded', cards)
-    resetExcludes()
-  }
-
-  const selectPasses = () => {
-    const cards = selectedHands.map((i) => hands[i])
-    action('select_passes', cards)
-    resetHands()
-  }
-
-  const serve = () => {
-    const cards = selectedHands.map((i) => hands[i])
-    action('serve', cards)
-    resetHands()
-  }
-
-  const oneChance = () => {
-    const card = hands.find((card) => card['Number'] && card['Number'][1] == 1)!
-    action('one_chance', [card])
-  }
-
   return (
     <div className='App'>
       {isDebug && (
@@ -83,77 +90,132 @@ export const CarrerPoker = (props: { roomId: string }) => {
           <p>{JSON.stringify(state.effect)}</p>
           <p>{state.players.join(' -> ')}</p>
           <p>current={JSON.stringify(state.current)}</p>
-          <p>last={JSON.stringify(state.last_served_player_id)}</p>
+          <p>selecting={state.prompts[id]}</p>
         </>
       )}
 
-      <button
-        style={{ margin: '0.5em' }}
-        onClick={(e) => action('distribute', {})}
-      >
-        配る
-      </button>
+      <Button
+        state={state}
+        label='配る'
+        disabled={(state) => false}
+        onClick={() => rpc('Distribute')}
+      />
 
-      <Deck
-        readonly={state.prompt_13_player_id !== id}
-        name='除外'
-        cards={state.excluded}
+      <DeckView
+        state={state}
+        label='除外'
+        disabled={(state) => state.prompts[id] !== 'excluded'}
+        deck={state.excluded}
         selects={selectedExcludes}
         onClickCard={toggleExclude}
       />
-      <Deck
-        readonly={state.prompt_4_player_id !== id}
-        name='墓地'
-        cards={state.trushes}
+      <DeckView
+        state={state}
+        label='墓地'
+        disabled={(state) => state.prompts[id] !== 'trushes'}
+        deck={state.trushes}
         selects={selectedTrushes}
         onClickCard={toggleTrush}
       />
-      <Deck readonly name='場' cards={state.river.at(-1) ?? []} />
-      <Deck
-        readonly={id !== state.current}
-        name='手札'
-        cards={hands}
+      <DeckView
+        state={state}
+        label='場'
+        disabled={(state) => true}
+        deck={river}
+      />
+      <DeckView
+        state={state}
+        label='手札'
+        disabled={(state) => id !== state.current}
+        deck={hands}
         selects={selectedHands}
         onClickCard={toggleHand}
       />
+      <Button
+        state={state}
+        label='パス'
+        disabled={(state) => !!state.prompts[id]}
+        onClick={() => rpc('Pass')}
+      />
 
-      {id === state.current &&
-        state.prompt_13_player_id !== id &&
-        state.prompt_7_player_id !== id &&
-        state.prompt_4_player_id !== id && (
-          <>
-            <button
-              style={{ margin: '0.5em' }}
-              onClick={(e) => action('pass', {})}
-            >
-              パス
-            </button>
-            <button style={{ margin: '0.5em' }} onClick={serve}>
-              出す
-            </button>
-          </>
-        )}
-      {state.prompt_13_player_id === id && (
-        <button style={{ margin: '0.5em' }} onClick={selectExcludes}>
-          除外から手札に加える
-        </button>
-      )}
-      {state.prompt_4_player_id === id && (
-        <button style={{ margin: '0.5em' }} onClick={selectTrushes}>
-          墓地から手札に加える
-        </button>
-      )}
-      {state.prompt_7_player_id === id && (
-        <button style={{ margin: '0.5em' }} onClick={selectPasses}>
-          左隣の人に渡す
-        </button>
-      )}
-      {id !== state.current &&
-        hands.some((card) => card['Number'] && card['Number'][1] == 1) && (
-          <button style={{ margin: '0.5em' }} onClick={oneChance}>
-            ワンチャンス
-          </button>
-        )}
+      <Button
+        state={state}
+        label='出す'
+        disabled={(state) => !!state.prompts[id]}
+        onClick={() => {
+          const serves = selectedHands.map((i) => hands.cards[i])
+          rpc({
+            Serve: {
+              serves,
+            },
+          })
+          resetHands()
+        }}
+      />
+
+      <Button
+        state={state}
+        label='除外から手札に加える'
+        disabled={(state) => state.prompts[id] !== 'excluded'}
+        onClick={() => {
+          const serves = selectedExcludes.map((i) => state.excluded.cards[i])
+          rpc({
+            SelectExcluded: {
+              serves,
+            },
+          })
+          resetExcludes()
+        }}
+      />
+
+      <Button
+        state={state}
+        label='墓地から手札に加える'
+        disabled={(state) => state.prompts[id] !== 'trushes'}
+        onClick={() => {
+          const serves = selectedTrushes.map((i) => state.trushes.cards[i])
+          rpc({
+            SelectTrushes: {
+              serves,
+            },
+          })
+          resetTrushes()
+        }}
+      />
+
+      <Button
+        state={state}
+        label='左隣の人に渡す'
+        disabled={(state) => state.prompts[id] !== id}
+        onClick={() => {
+          const serves = selectedHands.map((i) => hands.cards[i])
+          rpc({
+            SelectPasses: {
+              serves,
+            },
+          })
+          resetHands()
+        }}
+      />
+
+      <Button
+        state={state}
+        label='ワンチャンス'
+        disabled={(state) =>
+          id !== state.current &&
+          hands.cards.some((card) => 'Number' in card && card['Number'][1] == 1)
+        }
+        onClick={() => {
+          const card = hands.cards.find(
+            (card) => 'Number' in card && card['Number'][1] == 1
+          )!
+          rpc({
+            OneChance: {
+              serves: [card],
+            },
+          })
+        }}
+      />
     </div>
   )
 }

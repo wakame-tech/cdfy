@@ -1,5 +1,5 @@
 import { getPlugin } from './plugin.ts'
-import { Result, State } from './gen/types.ts'
+import { State } from './gen/types.ts'
 
 export interface Room {
   plugin: string
@@ -64,10 +64,10 @@ export class RoomService implements IRoomService {
 
   async leavePlayer(playerId: string, roomId: string): Promise<Room> {
     const room = rooms[roomId]
+    console.log(`[leave] room ${roomId}, id=${playerId}`)
     if (!room) {
       return Promise.reject(`room ${roomId} is null`)
     }
-    console.log(`[leave] room ${roomId} leavePlayer ${playerId}`)
     const runtime = getPlugin(room.plugin)
     if (!runtime) {
       return Promise.reject(`plugin ${room.plugin} not found`)
@@ -80,12 +80,7 @@ export class RoomService implements IRoomService {
     return room
   }
 
-  async onClick(
-    playerId: string,
-    roomId: string,
-    id: string,
-    value: unknown
-  ): Promise<Room> {
+  async rpc(playerId: string, roomId: string, value: unknown): Promise<Room> {
     const room = rooms[roomId]
     if (!room) {
       return Promise.reject(`room ${roomId} is null`)
@@ -94,15 +89,9 @@ export class RoomService implements IRoomService {
     if (!runtime) {
       return Promise.reject(`plugin ${room.plugin} not found`)
     }
-    console.log(value)
     const state = await new Promise<State | undefined>((resolve, reject) => {
       try {
-        const state = runtime.onClick?.(
-          playerId,
-          id,
-          room.state,
-          JSON.stringify(value)
-        )
+        const state = runtime.rpc?.(playerId, room.state, JSON.stringify(value))
         resolve(state)
       } catch (e) {
         reject(e)

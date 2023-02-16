@@ -2,23 +2,18 @@ use cdfy_sdk::{fp_export_impl, PluginMeta, State};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
+enum Action {
+    Increment,
+}
+
+#[derive(Serialize, Deserialize)]
 struct CounterState {
-    actions: Vec<String>,
     count: usize,
 }
 
 impl CounterState {
     pub fn new() -> Self {
-        Self {
-            count: 0,
-            actions: vec!["test".to_string()],
-        }
-    }
-
-    pub fn into_state(&self) -> State {
-        State {
-            data: serde_json::to_string(&self).unwrap(),
-        }
+        Self { count: 0 }
     }
 }
 
@@ -39,7 +34,9 @@ pub fn plugin_meta() -> PluginMeta {
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_create_room(player_id: String) -> State {
     let state = CounterState::new();
-    state.into_state()
+    State {
+        data: serde_json::to_string(&state).unwrap(),
+    }
 }
 
 #[fp_export_impl(cdfy_sdk)]
@@ -48,13 +45,20 @@ pub fn on_join_player(player_id: String, state: State) -> State {
 }
 
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_click(player_id: String, id: String, state: State) -> State {
-    let mut counter: CounterState = state.into();
-    match id.as_str() {
-        "test" => {
-            counter.count += 2;
+pub fn on_leave_player(player_id: String, state: State) -> State {
+    state
+}
+
+#[fp_export_impl(cdfy_sdk)]
+pub fn rpc(player_id: String, state: State, value: String) -> State {
+    let mut state: CounterState = state.into();
+    let action: Action = serde_json::from_str(&value).unwrap();
+    match action {
+        Action::Increment => {
+            state.count += 1;
         }
-        _ => {}
     };
-    counter.into_state()
+    State {
+        data: serde_json::to_string(&state).unwrap(),
+    }
 }

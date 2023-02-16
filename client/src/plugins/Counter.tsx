@@ -1,23 +1,26 @@
-import { useGameState } from '../state'
+import { usePlugin } from '../state'
+import { Button } from '../component/Button'
 
-export interface Data {
+interface State {
   count: number
-  actions: string[]
 }
 
-export const Counter = (props: { roomId: string }) => {
-  const { state, action } = useGameState<Data>(props.roomId)
+type Action = 'Increment'
 
-  const onClick = (id: string) => {
-    action(id, {})
-  }
+export const Counter = (props: { roomId: string }) => {
+  const { state, rpc } = usePlugin<State, Action>(props.roomId)
 
   return (
     <div className='App'>
-      <p>{state?.count}</p>
-      {state?.actions.map((id) => (
-        <button onClick={(e) => onClick(id)}>{id}</button>
-      ))}
+      <p>{JSON.stringify(state)}</p>
+      <Button
+        state={state}
+        label='+1'
+        disabled={(state) => false}
+        onClick={() => {
+          rpc('Increment')
+        }}
+      />
     </div>
   )
 }
