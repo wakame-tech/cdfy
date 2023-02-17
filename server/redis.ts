@@ -10,7 +10,6 @@ const redis = await connect({
   hostname,
   port,
   password,
-  tls: true,
 }).catch((e) => console.error(e))
 if (!redis) {
   Deno.exit()

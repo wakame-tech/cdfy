@@ -18,10 +18,11 @@ export const usePlugin = <S, R>(roomId: string | null) => {
 
   useEffect(() => {
     // const plugin = 'career-poker'
+    console.debug('emit join')
     socket.emit('join', roomId, plugin)
     socket.on('update', (room: Room) => {
-      console.log(`id = ${socket.id}`)
-      console.log(room)
+      console.debug(`id = ${socket.id}`)
+      console.debug(room)
       const data: S = JSON.parse(room.state.data)
       console.log(data)
       setState(data)
@@ -33,6 +34,7 @@ export const usePlugin = <S, R>(roomId: string | null) => {
   }, [])
 
   const rpc = (value: R) => {
+    console.debug({ roomId, value })
     socket.emit('rpc', roomId, value)
   }
 

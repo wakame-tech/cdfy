@@ -49,7 +49,7 @@ export function DeckView<S>(props: DeckViewProps<S>) {
     <div style={{ minHeight: '8rem' }}>
       <h2
         style={{
-          color: props.disabled(props.state) ? 'lightgray' : 'black',
+          color: props.disabled?.(props.state) ? 'lightgray' : 'black',
         }}
       >
         {props.label}({props.deck.cards.length})
@@ -60,7 +60,6 @@ export function DeckView<S>(props: DeckViewProps<S>) {
         {props.deck.cards.map((card, i) => (
           <>
             <CardView
-              style={{ flex: 'auto' }}
               key={i}
               onClick={() =>
                 !props.disabled?.(props.state) && props.onClickCard?.(i)
