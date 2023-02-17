@@ -84,6 +84,8 @@ export const CarrerPoker = (props: { roomId: string }) => {
 
   return (
     <div className='App'>
+      <p>{state.players.length} players</p>
+
       <div className='flex'>
         <div className='flex items-center mb-4'>
           <input
@@ -237,8 +239,12 @@ export const CarrerPoker = (props: { roomId: string }) => {
         label='ワンチャンス'
         disabled={(state) => {
           const hands = state?.fields[id] ?? defaultDeck()
-          return !hands.cards.some(
-            (card) => 'Number' in card && card['Number'][1] == 1
+          const disabled_1 = state.effect.effect_limits.includes(1)
+          return (
+            disabled_1 ||
+            !hands.cards.some(
+              (card) => 'Number' in card && card['Number'][1] == 1
+            )
           )
         }}
         onClick={() => {

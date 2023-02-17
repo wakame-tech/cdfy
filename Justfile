@@ -3,6 +3,13 @@ default:
     just plugin career-poker
     cd server && just run
 
+release:
+    just gen
+    just plugin counter
+    just plugin career-poker
+    cd server && just deploy
+    cd client && npm run deploy
+
 gen:
     cd ./crates/cdfy-binding-gen && cargo run
 

@@ -117,85 +117,119 @@ pub fn effect_revolution(state: &mut CareerPokerState, _player_id: &str, serves:
     }
 }
 
-pub fn effect_3(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
-    state.effect.effect_limits.extend(1..13)
+pub fn effect_3(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
+    if !state.effect.effect_limits.contains(&3) {
+        state.effect.effect_limits.extend(1..13)
+    }
+    state.next(player_id);
 }
 
 pub fn effect_4(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
-    let hands = state.fields.get(player_id).unwrap();
-    if hands.cards.is_empty() || state.trushes.cards.is_empty() {
-        return;
+    if !state.effect.effect_limits.contains(&4) {
+        let hands = state.fields.get(player_id).unwrap();
+        if hands.cards.is_empty() || state.trushes.cards.is_empty() {
+            state.next(player_id);
+            return;
+        }
+        state
+            .prompts
+            .insert(player_id.to_string(), "trushes".to_string());
+    } else {
+        state.next(player_id);
     }
-    state
-        .prompts
-        .insert(player_id.to_string(), "trushes".to_string());
 }
 
 pub fn effect_5(state: &mut CareerPokerState, player_id: &str, serves: &Vec<Card>) {
-    state.current = state.get_relative_player(player_id, 1 + serves.len() as i32);
+    if !state.effect.effect_limits.contains(&5) {
+        state.current = state.get_relative_player(player_id, 1 + serves.len() as i32);
+        if state.current == Some(player_id.to_string()) {
+            state.will_flush(player_id, "trushes");
+        }
+    } else {
+        state.next(player_id);
+    }
 }
 
 pub fn effect_7(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
-    state
-        .prompts
-        .insert(player_id.to_string(), player_id.to_string());
+    let hands = state.fields.get(player_id).unwrap();
+    if !state.effect.effect_limits.contains(&7) && !hands.cards.is_empty() {
+        state
+            .prompts
+            .insert(player_id.to_string(), player_id.to_string());
+    } else {
+        state.next(player_id);
+    }
 }
 
 pub fn effect_8(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
-    state.will_flush(player_id, "trushes");
-}
-
-pub fn effect_9(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
-    state.effect.river_size = match state.effect.river_size {
-        Some(1) => Some(3),
-        Some(3) => Some(1),
-        n => n,
+    if !state.effect.effect_limits.contains(&8) {
+        state.will_flush(player_id, "trushes");
+    } else {
+        state.next(player_id);
     }
 }
 
-pub fn servable_9(state: &CareerPokerState, serves: &Vec<Card>) -> bool {
-    let river_size = state.effect.river_size.unwrap();
-    river_size
-        == match river_size {
-            3 => 1,
-            1 => 3,
+pub fn effect_9(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
+    if !state.effect.effect_limits.contains(&9) {
+        state.effect.river_size = match state.effect.river_size {
+            Some(1) => Some(3),
+            Some(3) => Some(1),
             n => n,
-        }
+        };
+    }
+    state.next(&player_id);
 }
 
-pub fn effect_10(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
-    state.effect.effect_limits.extend(1..10)
+pub fn servable_9(state: &CareerPokerState, _serves: &Vec<Card>) -> bool {
+    let river_size = state.effect.river_size.unwrap();
+    match river_size {
+        1 | 3 => river_size == 1 || river_size == 3,
+        n => river_size == n,
+    }
 }
 
-pub fn effect_11(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
-    state.effect.turn_revoluted = true;
+pub fn effect_10(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
+    if !state.effect.effect_limits.contains(&10) {
+        state.effect.effect_limits.extend(1..9);
+    }
+    state.next(&player_id);
 }
 
-pub fn effect_12(state: &mut CareerPokerState, _player_id: &str, serves: &Vec<Card>) {
-    state.effect.is_step = true;
-    state.effect.suit_limits.extend(suits(serves));
+pub fn effect_11(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
+    if !state.effect.effect_limits.contains(&11) {
+        state.effect.turn_revoluted = true;
+    }
+    state.next(&player_id);
+}
+
+pub fn effect_12(state: &mut CareerPokerState, player_id: &str, serves: &Vec<Card>) {
+    if !state.effect.effect_limits.contains(&12) {
+        state.effect.is_step = true;
+        state.effect.suit_limits.extend(suits(serves));
+    }
+    state.next(&player_id);
 }
 
 pub fn effect_13(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
-    let hands = state.fields.get(player_id).unwrap();
-    if hands.cards.is_empty() || state.excluded.cards.is_empty() {
-        return;
-    }
-    state
-        .prompts
-        .insert(player_id.to_string(), "excluded".to_string());
-}
-
-pub fn effect_1(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
-    for player_id in state.players.iter() {
+    if !state.effect.effect_limits.contains(&13) {
+        let hands = state.fields.get(player_id).unwrap();
+        if hands.cards.is_empty() || state.excluded.cards.is_empty() {
+            state.next(&player_id);
+        }
         state
             .prompts
-            .insert(player_id.to_string(), "janken".to_string());
+            .insert(player_id.to_string(), "excluded".to_string());
+    } else {
+        state.next(&player_id);
     }
 }
 
 pub fn effect_2(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
-    state.will_flush(player_id, "excluded");
+    if !state.effect.effect_limits.contains(&2) {
+        state.will_flush(player_id, "excluded");
+    } else {
+        state.next(&player_id);
+    }
 }
 
 pub fn effect_card(state: &mut CareerPokerState, player_id: &str, serves: &Vec<Card>) {
@@ -210,18 +244,19 @@ pub fn effect_card(state: &mut CareerPokerState, player_id: &str, serves: &Vec<C
 
     let n = number(serves);
     match n {
-        3 if !state.effect.effect_limits.contains(&n) => effect_3(state, player_id, serves),
-        4 if !state.effect.effect_limits.contains(&n) => effect_4(state, player_id, serves),
-        5 if !state.effect.effect_limits.contains(&n) => effect_5(state, player_id, serves),
-        7 if !state.effect.effect_limits.contains(&n) => effect_7(state, player_id, serves),
-        8 if !state.effect.effect_limits.contains(&n) => effect_8(state, player_id, serves),
-        9 if !state.effect.effect_limits.contains(&n) => effect_9(state, player_id, serves),
-        10 if !state.effect.effect_limits.contains(&n) => effect_10(state, player_id, serves),
-        11 if !state.effect.effect_limits.contains(&n) => effect_11(state, player_id, serves),
-        12 if !state.effect.effect_limits.contains(&n) => effect_12(state, player_id, serves),
-        13 if !state.effect.effect_limits.contains(&n) => effect_13(state, player_id, serves),
-        1 if !state.effect.effect_limits.contains(&n) => effect_1(state, player_id, serves),
-        2 if !state.effect.effect_limits.contains(&n) => effect_2(state, player_id, serves),
+        3 => effect_3(state, player_id, serves),
+        4 => effect_4(state, player_id, serves),
+        5 => effect_5(state, player_id, serves),
+        6 => state.next(&player_id),
+        7 => effect_7(state, player_id, serves),
+        8 => effect_8(state, player_id, serves),
+        9 => effect_9(state, player_id, serves),
+        10 => effect_10(state, player_id, serves),
+        11 => effect_11(state, player_id, serves),
+        12 => effect_12(state, player_id, serves),
+        13 => effect_13(state, player_id, serves),
+        1 => state.next(&player_id),
+        2 => effect_2(state, player_id, serves),
         _ => {}
     };
 }
@@ -303,13 +338,13 @@ impl CareerPokerState {
         }
         for (i, card) in cards.into_iter().enumerate() {
             let player_id = players[i % players.len()];
-            if let Some(deck) = self.fields.get_mut(player_id) {
-                deck.cards.push(card);
+            if let Some(hand) = self.fields.get_mut(player_id) {
+                hand.cards.push(card);
             }
         }
         for player_id in players.iter() {
-            if let Some(deck) = self.fields.get_mut(*player_id) {
-                deck.cards.sort_by(|a, b| card_ord(a, b))
+            if let Some(hand) = self.fields.get_mut(*player_id) {
+                hand.cards.sort_by(|a, b| card_ord(a, b))
             }
         }
         self.current = Some(self.players[0].clone())
@@ -321,8 +356,8 @@ impl CareerPokerState {
         loop {
             let index =
                 ((player_index as i32 + delta).rem_euclid(self.players.len() as i32)) as usize;
-            if let Some(deck) = self.fields.get(&self.players[index]) {
-                if !deck.cards.is_empty() {
+            if let Some(hand) = self.fields.get(&self.players[index]) {
+                if !hand.cards.is_empty() {
                     return Some(self.players[index].clone());
                 }
             }
@@ -376,11 +411,11 @@ impl CareerPokerState {
         if self.river.last().unwrap().cards.len() != serves.len() {
             return;
         }
-        let Some(deck) = self.fields.get_mut(&player_id) else {
+        let Some(hand) = self.fields.get_mut(&player_id) else {
             return;
         };
         remove_items(&mut self.trushes.cards, &serves);
-        deck.cards.extend(serves);
+        hand.cards.extend(serves);
         self.prompts.remove(&player_id);
         self.next(&player_id);
     }
@@ -389,11 +424,11 @@ impl CareerPokerState {
         if self.river.last().unwrap().cards.len() != serves.len() {
             return;
         }
-        let Some(deck) = self.fields.get_mut(&player_id) else {
+        let Some(hand) = self.fields.get_mut(&player_id) else {
             return;
         };
         remove_items(&mut self.excluded.cards, &serves);
-        deck.cards.extend(serves);
+        hand.cards.extend(serves);
         self.prompts.remove(&player_id);
         self.next(&player_id);
     }
@@ -403,47 +438,45 @@ impl CareerPokerState {
             return;
         }
         let left_id = self.get_relative_player(&player_id, -1).unwrap();
-        let Some(deck) = self.fields.get_mut(&player_id) else {
+        let Some(hand) = self.fields.get_mut(&player_id) else {
             return;
         };
-        remove_items(&mut deck.cards, &serves);
-        let Some(left_deck) = self.fields.get_mut(&left_id) else {
-            return;
-        };
+        remove_items(&mut hand.cards, &serves);
+        let left_deck = self.fields.get_mut(&left_id).unwrap();
         left_deck.cards.extend(serves);
         self.prompts.remove(&player_id);
+        self.next(&player_id);
     }
 
     pub fn one_chance(&mut self, player_id: String, serves: Vec<Card>) {
-        let Some(deck) = self.fields.get_mut(&player_id) else {
+        let Some(hand) = self.fields.get_mut(&player_id) else {
             return;
         };
-
-        remove_items(&mut deck.cards, &serves);
+        if self.effect.effect_limits.contains(&1) || hand.cards == serves {
+            return;
+        }
+        remove_items(&mut hand.cards, &serves);
         if let Some(task_id) = self.will_flush_task_id.as_ref() {
             cancel(self.room_id.clone(), task_id.to_string());
         }
 
-        // effect_card(self, &player_id, &serves);
-        // self.flush();
-        // self.trushes.cards.extend(serves);
-        // self.current = Some(player_id);
+        effect_card(self, &player_id, &serves);
+        self.flush("trushes".to_string());
+        self.trushes.cards.extend(serves);
+        self.current = Some(player_id);
     }
 
     pub fn serve(&mut self, player_id: String, serves: Vec<Card>) {
         if !servable(&self, &serves) {
             return;
         }
-        let Some(deck) = self.fields.get_mut(&player_id) else {
+        let Some(hand) = self.fields.get_mut(&player_id) else {
             return;
         };
-        remove_items(&mut deck.cards, &serves);
+        remove_items(&mut hand.cards, &serves);
         self.last_served_player_id = Some(player_id.clone());
 
         effect_card(self, &player_id, &serves);
-        if self.prompts.is_empty() && self.will_flush_task_id.is_none() {
-            self.next(&player_id);
-        }
     }
 }
 

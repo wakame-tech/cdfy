@@ -18,7 +18,7 @@ export const usePlugin = <S, R>(roomId: string | null) => {
 
   useEffect(() => {
     // const plugin = 'career-poker'
-    console.debug('emit join')
+    console.debug(`emit join as ${socket.id}`)
     socket.emit('join', roomId, plugin)
     socket.on('update', (room: Room) => {
       console.debug(`id = ${socket.id}`)
@@ -28,8 +28,7 @@ export const usePlugin = <S, R>(roomId: string | null) => {
       setState(data)
     })
     return () => {
-      socket.off('join')
-      socket.off('rpc')
+      socket.off('update')
     }
   }, [])
 
