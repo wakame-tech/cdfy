@@ -1,10 +1,22 @@
 import { Server } from 'https://deno.land/x/socket_io@0.1.1/mod.ts'
 import { serve } from 'https://deno.land/std/http/server.ts'
+import { connect } from 'https://deno.land/x/redis/mod.ts'
 import { RoomService } from './room.ts'
 import { registerPluginFromLocal } from './plugin.ts'
 
 await registerPluginFromLocal('./counter.wasm')
 await registerPluginFromLocal('./career_poker.wasm')
+
+const hostname = Deno.env.get('REDIS_HOST')!
+const port = Deno.env.get('REDIS_PORT')!
+const password = Deno.env.get('REDIS_PASSWORD')!
+
+export const redis = await connect({
+  hostname,
+  port,
+  password,
+  // tls: true,
+})
 
 export const io = new Server({
   connectTimeout: 5000,
@@ -18,7 +30,7 @@ io.on('connection', (socket) => {
   const usecase = new RoomService()
   console.log(`[connect] id=${socket.id}`)
 
-  socket.on('join', async (roomId: string) => {
+  socket.on('join', async (roomId: string, plugin: string) => {
     if (await usecase.existRoom(roomId)) {
       socket.join(roomId)
       const room = await usecase
@@ -31,8 +43,6 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('update', room)
     } else {
       socket.join(roomId)
-      const plugin = 'counter'
-      // const plugin = 'career-poker'
       const room = await usecase
         .createRoom(socket.id, roomId, plugin)
         .catch((e) => console.error(e))

@@ -1,5 +1,6 @@
 default:
-    just plugin counter  # career-poker
+    just plugin counter
+    just plugin career-poker
     cd server && just run
 
 gen:
