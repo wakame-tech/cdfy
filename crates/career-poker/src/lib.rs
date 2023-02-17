@@ -1,7 +1,13 @@
 use card::Card;
-use cdfy_sdk::{fp_export_impl, reserve, PluginMeta, State};
+#[cfg(target_arch = "wasm32")]
+use cdfy_sdk::{cancel, fp_export_impl, reserve, PluginMeta, State};
+#[cfg(not(target_arch = "wasm32"))]
+use mock::*;
 use serde::{Deserialize, Serialize};
 use state::CareerPokerState;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mock;
 
 pub mod card;
 pub mod deck;
@@ -19,12 +25,6 @@ pub enum Action {
     Serve { serves: Vec<Card> },
 }
 
-impl Into<CareerPokerState> for State {
-    fn into(self) -> CareerPokerState {
-        serde_json::from_str(&self.data.as_str()).unwrap()
-    }
-}
-
 pub fn will_flush(player_id: String, room_id: String, to: String) -> String {
     reserve(
         player_id,
@@ -34,6 +34,17 @@ pub fn will_flush(player_id: String, room_id: String, to: String) -> String {
     )
 }
 
+pub fn cancel_task(room_id: String, task_id: String) {
+    cancel(room_id, task_id);
+}
+
+impl Into<CareerPokerState> for State {
+    fn into(self) -> CareerPokerState {
+        serde_json::from_str(&self.data).unwrap()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn plugin_meta() -> PluginMeta {
     PluginMeta {
@@ -42,6 +53,7 @@ pub fn plugin_meta() -> PluginMeta {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_create_room(player_id: String, room_id: String) -> State {
     let mut state = CareerPokerState::new(room_id);
@@ -51,8 +63,9 @@ pub fn on_create_room(player_id: String, room_id: String) -> State {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_join_player(player_id: String, room_id: String, state: State) -> State {
+pub fn on_join_player(player_id: String, _room_id: String, state: State) -> State {
     let mut state: CareerPokerState = state.into();
     state.join(player_id);
     State {
@@ -60,8 +73,9 @@ pub fn on_join_player(player_id: String, room_id: String, state: State) -> State
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_leave_player(player_id: String, room_id: String, state: State) -> State {
+pub fn on_leave_player(player_id: String, _room_id: String, state: State) -> State {
     let mut state: CareerPokerState = state.into();
     state.leave(player_id);
     State {
@@ -69,8 +83,9 @@ pub fn on_leave_player(player_id: String, room_id: String, state: State) -> Stat
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_task(task_id: String, state: State) -> State {
+pub fn on_task(_task_id: String, state: State) -> State {
     let mut state: CareerPokerState = serde_json::from_str(&state.data.as_str()).unwrap();
     state.will_flush_task_id = None;
     State {
@@ -78,8 +93,9 @@ pub fn on_task(task_id: String, state: State) -> State {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_cancel_task(task_id: String, state: State) -> State {
+pub fn on_cancel_task(_task_id: String, state: State) -> State {
     let mut state: CareerPokerState = serde_json::from_str(&state.data.as_str()).unwrap();
     state.will_flush_task_id = None;
     State {
@@ -87,8 +103,9 @@ pub fn on_cancel_task(task_id: String, state: State) -> State {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> State {
+pub fn rpc(player_id: String, _room_id: String, state: State, value: String) -> State {
     let mut state: CareerPokerState = serde_json::from_str(&state.data.as_str()).unwrap();
     let action: Action = serde_json::from_str(value.as_str()).unwrap();
     match action {

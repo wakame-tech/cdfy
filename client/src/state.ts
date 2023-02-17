@@ -20,11 +20,12 @@ export const usePlugin = <S, R>(roomId: string | null) => {
     // const plugin = 'career-poker'
     console.debug(`emit join as ${socket.id}`)
     socket.emit('join', roomId, plugin)
-    socket.on('update', (room: Room) => {
-      console.debug(`id = ${socket.id}`)
+    socket.on('update', (room: Room | null) => {
+      if (!room) {
+        throw 'room is null'
+      }
       console.debug(room)
       const data: S = JSON.parse(room.state.data)
-      console.log(data)
       setState(data)
     })
     return () => {

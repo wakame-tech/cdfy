@@ -1,7 +1,12 @@
+#[cfg(target_arch = "wasm32")]
+use cdfy_sdk::{cancel, fp_export_impl, reserve, PluginMeta, State};
+#[cfg(not(target_arch = "wasm32"))]
+use mock::*;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
-use cdfy_sdk::{cancel, fp_export_impl, reserve, PluginMeta, State};
-use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mock;
 
 #[derive(Serialize, Deserialize)]
 enum Action {
@@ -31,6 +36,7 @@ impl Into<CounterState> for State {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn plugin_meta() -> PluginMeta {
     PluginMeta {
@@ -39,6 +45,7 @@ pub fn plugin_meta() -> PluginMeta {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_create_room(player_id: String, room_id: String) -> State {
     let state = CounterState::new();
@@ -47,16 +54,19 @@ pub fn on_create_room(player_id: String, room_id: String) -> State {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_join_player(player_id: String, room_id: String, state: State) -> State {
     state
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_leave_player(player_id: String, room_id: String, state: State) -> State {
     state
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_task(task_id: String, state: State) -> State {
     let mut state: CounterState = state.into();
@@ -68,6 +78,7 @@ pub fn on_task(task_id: String, state: State) -> State {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> State {
     let mut state: CounterState = state.into();

@@ -1,3 +1,8 @@
+#[cfg(not(target_arch = "wasm32"))]
+use crate::mock::*;
+#[cfg(target_arch = "wasm32")]
+use cdfy_sdk::{cancel, rand};
+
 use crate::{
     card::{Card, Suit},
     deck::{
@@ -5,7 +10,6 @@ use crate::{
     },
     will_flush,
 };
-use cdfy_sdk::cancel;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
