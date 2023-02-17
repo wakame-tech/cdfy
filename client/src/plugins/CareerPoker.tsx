@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { usePlugin } from '../state'
 import { Suit, Card } from '../component/CardView'
 import { Button } from '../component/Button'
+import { DebugView } from '../component/Debug'
 import { DeckView, Deck, defaultDeck, useSelects } from '../component/DeckView'
 
 type Rpc =
@@ -55,7 +56,7 @@ interface State {
 }
 
 export const CarrerPoker = (props: { roomId: string }) => {
-  const [isDebug, setDebug] = useState(true)
+  const [isDebug, setDebug] = useState(false)
   const { id, state, rpc } = usePlugin<State, Rpc>(props.roomId)
 
   const hands = state?.fields[id] ?? defaultDeck()
@@ -83,25 +84,37 @@ export const CarrerPoker = (props: { roomId: string }) => {
 
   return (
     <div className='App'>
-      {isDebug && (
-        <>
-          <p>
-            id={id}, players={state?.players.join(',')}
-          </p>
-          <p>{JSON.stringify(state.effect)}</p>
-          <p>{state.players.join(' -> ')}</p>
-          <p>current={JSON.stringify(state.current)}</p>
-          <p>selecting={state.prompts[id]}</p>
-          <p>task={state.will_flush_task_id}</p>
-        </>
-      )}
+      <div className='flex'>
+        <div className='flex items-center mb-4'>
+          <input
+            id='default-checkbox'
+            type='checkbox'
+            checked={isDebug}
+            className='w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded'
+            onClick={(e) => setDebug(!isDebug)}
+          />
+          <label
+            htmlFor='default-checkbox'
+            className='ml-2 text-sm font-medium text-gray-900 dark:text-gray-300'
+          >
+            デバッグ
+          </label>
+        </div>
+      </div>
 
-      <Button
-        state={state}
-        label='配る'
-        disabled={(state) => false}
-        onClick={() => rpc('Distribute')}
-      />
+      {isDebug && (
+        <DebugView state={state} />
+        // <>
+        //   <p>
+        //     id={id}, players={state?.players.join(',')}
+        //   </p>
+        //   <p>{JSON.stringify(state.effect)}</p>
+        //   <p>{state.players.join(' -> ')}</p>
+        //   <p>current={JSON.stringify(state.current)}</p>
+        //   <p>selecting={state.prompts[id]}</p>
+        //   <p>task={state.will_flush_task_id}</p>
+        // </>
+      )}
 
       <details>
         <summary>除外・墓地</summary>
@@ -135,6 +148,14 @@ export const CarrerPoker = (props: { roomId: string }) => {
         deck={hands}
         selects={selectedHands}
         onClickCard={toggleHand}
+      />
+
+      <Button
+        color='bg-red-700'
+        state={state}
+        label='開始'
+        disabled={(state) => false}
+        onClick={() => rpc('Distribute')}
       />
       <Button
         state={state}
@@ -216,7 +237,9 @@ export const CarrerPoker = (props: { roomId: string }) => {
         label='ワンチャンス'
         disabled={(state) => {
           const hands = state?.fields[id] ?? defaultDeck()
-          hands.cards.some((card) => 'Number' in card && card['Number'][1] == 1)
+          return !hands.cards.some(
+            (card) => 'Number' in card && card['Number'][1] == 1
+          )
         }}
         onClick={() => {
           const card = hands.cards.find(

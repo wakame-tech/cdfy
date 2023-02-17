@@ -106,10 +106,10 @@ pub fn remove_items<T: Eq + Clone>(items: &mut Vec<T>, removes: &Vec<T>) {
 }
 
 impl Deck {
-    pub fn new() -> Self {
+    pub fn new(cards: Vec<Card>) -> Self {
         Self {
             style: DeckStyle::Arrange,
-            cards: vec![],
+            cards,
         }
     }
 }

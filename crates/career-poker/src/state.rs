@@ -246,8 +246,8 @@ impl CareerPokerState {
     pub fn new(room_id: String) -> Self {
         Self {
             room_id,
-            excluded: Deck::new(),
-            trushes: Deck::new(),
+            excluded: Deck::new(vec![]),
+            trushes: Deck::new(vec![]),
             river: vec![],
             will_flush_task_id: None,
             players: vec![],
@@ -262,8 +262,8 @@ impl CareerPokerState {
     pub fn reset(&mut self) {
         *self = Self {
             room_id: self.room_id.to_string(),
-            excluded: Deck::new(),
-            trushes: Deck::new(),
+            excluded: Deck::new(vec![]),
+            trushes: Deck::new(vec![]),
             river: vec![],
             will_flush_task_id: None,
             players: self.players.clone(),
@@ -450,48 +450,46 @@ impl CareerPokerState {
 #[cfg(test)]
 mod tests {
     use crate::{
-        deck::{Deck, DeckStyle},
+        deck::Deck,
         state::{servable, CareerPokerState},
     };
     use std::collections::HashMap;
 
     #[test]
     fn test_servable() {
-        let state = CareerPokerState::new("".to_string());
-        let serves = vec!["3h".into(), "4h".into()];
-        assert_eq!(servable(&state, &serves), false);
+        let mut state = CareerPokerState::new("".to_string());
+        let serves = vec!["3h".into(), "3d".into()];
+        assert_eq!(servable(&state, &serves), true);
+
+        state.effect.river_size = Some(1);
+        state.river.push(Deck::new(vec!["Kh".into()]));
+
+        let serves = vec!["Ah".into()];
+        assert_eq!(servable(&state, &serves), true);
     }
 
     #[test]
     fn test_get_relative_player() {
         let mut state = CareerPokerState::new("".to_string());
         state.fields = HashMap::from_iter(vec![
-            (
-                "a".to_string(),
-                Deck {
-                    style: DeckStyle::Arrange,
-                    cards: vec!["Ah".into()],
-                },
-            ),
-            (
-                "b".to_string(),
-                Deck {
-                    style: DeckStyle::Arrange,
-                    cards: vec!["Ah".into()],
-                },
-            ),
-            (
-                "c".to_string(),
-                Deck {
-                    style: DeckStyle::Arrange,
-                    cards: vec!["Ah".into()],
-                },
-            ),
+            ("a".to_string(), Deck::new(vec!["Ah".into()])),
+            ("b".to_string(), Deck::new(vec!["Ah".into()])),
+            ("c".to_string(), Deck::new(vec!["Ah".into()])),
         ]);
         state.players = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         assert_eq!(state.get_relative_player("a", 1), Some("b".to_string()));
         assert_eq!(state.get_relative_player("a", -1), Some("c".to_string()));
         assert_eq!(state.get_relative_player("a", 2), Some("c".to_string()));
         assert_eq!(state.get_relative_player("a", 3), Some("a".to_string()));
+
+        let mut state = CareerPokerState::new("".to_string());
+        state.fields = HashMap::from_iter(vec![
+            ("a".to_string(), Deck::new(vec!["Ah".into()])),
+            ("b".to_string(), Deck::new(vec!["Ah".into()])),
+        ]);
+        state.players = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(state.get_relative_player("a", 1), Some("b".to_string()));
+        assert_eq!(state.get_relative_player("a", -1), Some("b".to_string()));
+        assert_eq!(state.get_relative_player("a", 2), Some("a".to_string()));
     }
 }
