@@ -17,6 +17,12 @@ pub struct PluginMeta {
 
 fp_import! {
     fn rand() -> u32;
+
+    /// cancel task by `task_id`
+    fn cancel(task_id: String);
+
+    /// reserve task and execute returns `task_id`
+    fn reserve(player_id: String, room_id: String, action: String, timeout: u32) -> String;
 }
 
 fp_export! {
@@ -24,15 +30,18 @@ fp_export! {
     fn plugin_meta() -> PluginMeta;
 
     /// fire when a room is created
-    fn on_create_room(player_id: String) -> State;
+    fn on_create_room(player_id: String, room_id: String) -> State;
 
     /// fire when join a player
-    fn on_join_player(player_id: String, state: State) -> State;
+    fn on_join_player(player_id: String, room_id: String, state: State) -> State;
 
     /// fire when leave a player
-    fn on_leave_player(player_id: String, state: State) -> State;
+    fn on_leave_player(player_id: String, room_id: String, state: State) -> State;
 
-    fn rpc(player_id: String, state: State, value: String) -> State;
+    /// fire when task has been executed
+    fn on_task(task_id: String, state: State) -> State;
+
+    fn rpc(player_id: String, room_id: String, state: State, value: String) -> State;
 }
 
 static PLUGIN_DEPENDENCIES: Lazy<BTreeMap<&str, CargoDependency>> = Lazy::new(|| {

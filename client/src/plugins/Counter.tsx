@@ -5,7 +5,7 @@ interface State {
   count: number
 }
 
-type Action = 'Increment'
+type Action = 'Increment' | 'WillIncrement' | 'Cancel'
 
 export const Counter = (props: { roomId: string }) => {
   const { state, rpc } = usePlugin<State, Action>(props.roomId)
@@ -13,6 +13,22 @@ export const Counter = (props: { roomId: string }) => {
   return (
     <div className='App'>
       <p>{JSON.stringify(state)}</p>
+      <Button
+        state={state}
+        label='cancel'
+        disabled={(state) => false}
+        onClick={() => {
+          rpc('Cancel')
+        }}
+      />
+      <Button
+        state={state}
+        label='+1 after 3s'
+        disabled={(state) => false}
+        onClick={() => {
+          rpc('WillIncrement')
+        }}
+      />
       <Button
         state={state}
         label='+1'

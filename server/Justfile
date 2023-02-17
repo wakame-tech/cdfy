@@ -4,6 +4,9 @@ project := env_var('PROJECT_ID')
 run:
     deno run -A ./server.ts
 
+test:
+    deno run -A ./redis.ts
+
 deploy:
     #!/bin/zsh
     deployctl deploy --prod --project={{project}} ./server.ts

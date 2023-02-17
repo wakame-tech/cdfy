@@ -6,7 +6,7 @@ import { registerPluginFromLocal } from './plugin.ts'
 await registerPluginFromLocal('./counter.wasm')
 await registerPluginFromLocal('./career_poker.wasm')
 
-const io = new Server({
+export const io = new Server({
   connectTimeout: 5000,
   cors: {
     origin: [Deno.env.get('ORIGIN')!],

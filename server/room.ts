@@ -12,12 +12,8 @@ export interface IRoomService {
   createRoom(playerId: string, roomId: string): Promise<Room>
   joinPlayer(playerId: string, roomId: string): Promise<Room>
   leavePlayer(playerId: string, roomId: string): Promise<Room>
-  onClick(
-    playerId: string,
-    roomId: string,
-    id: string,
-    value: unknown
-  ): Promise<Room>
+  onTask(roomId: string, taskId: string): Promise<Room>
+  rpc(playerId: string, roomId: string, action: unknown): Promise<Room>
 }
 
 export class RoomService implements IRoomService {
@@ -34,7 +30,7 @@ export class RoomService implements IRoomService {
     if (!runtime) {
       return Promise.reject(`plugin ${plugin} not found`)
     }
-    const state = runtime.onCreateRoom?.(playerId)
+    const state = runtime.onCreateRoom?.(playerId, roomId)
     if (!state) {
       return Promise.reject('state is null')
     }
@@ -54,7 +50,7 @@ export class RoomService implements IRoomService {
     if (!runtime) {
       return Promise.reject(`plugin ${room.plugin} not found`)
     }
-    const state = runtime.onJoinPlayer?.(playerId, room.state)
+    const state = runtime.onJoinPlayer?.(playerId, roomId, room.state)
     if (!state) {
       return Promise.reject('state is null')
     }
@@ -72,7 +68,7 @@ export class RoomService implements IRoomService {
     if (!runtime) {
       return Promise.reject(`plugin ${room.plugin} not found`)
     }
-    const state = runtime.onLeavePlayer?.(playerId, room.state)
+    const state = runtime.onLeavePlayer?.(playerId, roomId, room.state)
     if (!state) {
       return Promise.reject('state is null')
     }
@@ -80,7 +76,7 @@ export class RoomService implements IRoomService {
     return room
   }
 
-  async rpc(playerId: string, roomId: string, value: unknown): Promise<Room> {
+  async onTask(roomId: string, taskId: string): Promise<Room> {
     const room = rooms[roomId]
     if (!room) {
       return Promise.reject(`room ${roomId} is null`)
@@ -91,7 +87,37 @@ export class RoomService implements IRoomService {
     }
     const state = await new Promise<State | undefined>((resolve, reject) => {
       try {
-        const state = runtime.rpc?.(playerId, room.state, JSON.stringify(value))
+        const state = runtime.onTask?.(taskId, room.state)
+        resolve(state)
+      } catch (e) {
+        reject(e)
+      }
+    }).catch((e) => console.error(e))
+    if (!state) {
+      return Promise.reject('state is null')
+    }
+    console.log(`state(${state.data.length} B)`)
+    room.state = state
+    return room
+  }
+
+  async rpc(playerId: string, roomId: string, action: unknown): Promise<Room> {
+    const room = rooms[roomId]
+    if (!room) {
+      return Promise.reject(`room ${roomId} is null`)
+    }
+    const runtime = getPlugin(room.plugin)
+    if (!runtime) {
+      return Promise.reject(`plugin ${room.plugin} not found`)
+    }
+    const state = await new Promise<State | undefined>((resolve, reject) => {
+      try {
+        const state = runtime.rpc?.(
+          playerId,
+          roomId,
+          room.state,
+          JSON.stringify(action)
+        )
         resolve(state)
       } catch (e) {
         reject(e)

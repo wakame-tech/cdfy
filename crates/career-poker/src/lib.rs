@@ -33,7 +33,7 @@ pub fn plugin_meta() -> PluginMeta {
 }
 
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_create_room(player_id: String) -> State {
+pub fn on_create_room(player_id: String, room_id: String) -> State {
     let mut state = CareerPokerState::new();
     state.players.push(player_id);
     State {
@@ -42,7 +42,7 @@ pub fn on_create_room(player_id: String) -> State {
 }
 
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_join_player(player_id: String, state: State) -> State {
+pub fn on_join_player(player_id: String, room_id: String, state: State) -> State {
     let mut state: CareerPokerState = state.into();
     state.join(player_id);
     State {
@@ -51,7 +51,7 @@ pub fn on_join_player(player_id: String, state: State) -> State {
 }
 
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_leave_player(player_id: String, state: State) -> State {
+pub fn on_leave_player(player_id: String, room_id: String, state: State) -> State {
     let mut state: CareerPokerState = state.into();
     state.leave(player_id);
     State {
@@ -60,7 +60,7 @@ pub fn on_leave_player(player_id: String, state: State) -> State {
 }
 
 #[fp_export_impl(cdfy_sdk)]
-pub fn rpc(player_id: String, state: State, value: String) -> State {
+pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> State {
     let mut state: CareerPokerState = serde_json::from_str(&state.data.as_str()).unwrap();
     let action: Action = serde_json::from_str(value.as_str()).unwrap();
     match action {
