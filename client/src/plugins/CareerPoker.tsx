@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePlugin } from '../state'
 import { Suit, Card } from '../component/CardView'
 import { Button } from '../component/Button'
@@ -42,6 +42,7 @@ interface Effect {
 }
 
 interface State {
+  room_id: string
   current: string | null
   players: string[]
   excluded: Deck
@@ -61,6 +62,19 @@ export const CarrerPoker = (props: { roomId: string }) => {
 
   const hands = state?.fields[id] ?? defaultDeck()
   const river = state?.river[state?.river.length - 1] ?? defaultDeck()
+
+  const [sec, setSec] = useState(0)
+
+  useEffect(() => {
+    if (state?.will_flush_task_id) {
+      let s = 5
+      setSec(s)
+      let id = setInterval(() => setSec(--s), 1000)
+      return () => {
+        clearInterval(id)
+      }
+    }
+  }, [state?.will_flush_task_id])
 
   const {
     selects: selectedHands,
@@ -84,7 +98,9 @@ export const CarrerPoker = (props: { roomId: string }) => {
 
   return (
     <div className='App'>
-      <p>{state.players.length} players</p>
+      <p>
+        room {state.room_id} {state.players.length} players
+      </p>
 
       <div className='flex'>
         <div className='flex items-center mb-4'>
@@ -104,19 +120,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
         </div>
       </div>
 
-      {isDebug && (
-        <DebugView state={state} />
-        // <>
-        //   <p>
-        //     id={id}, players={state?.players.join(',')}
-        //   </p>
-        //   <p>{JSON.stringify(state.effect)}</p>
-        //   <p>{state.players.join(' -> ')}</p>
-        //   <p>current={JSON.stringify(state.current)}</p>
-        //   <p>selecting={state.prompts[id]}</p>
-        //   <p>task={state.will_flush_task_id}</p>
-        // </>
-      )}
+      {isDebug && <DebugView state={state} />}
 
       <details>
         <summary>除外・墓地</summary>
@@ -139,7 +143,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
       </details>
       <DeckView
         state={state}
-        label={state.will_flush_task_id ? '場(5秒後に流れます)' : '場'}
+        label='場'
         disabled={(state) => true}
         deck={river}
       />
@@ -152,115 +156,133 @@ export const CarrerPoker = (props: { roomId: string }) => {
         onClickCard={toggleHand}
       />
 
-      <Button
-        color='bg-red-700'
-        state={state}
-        label='開始'
-        disabled={(state) => false}
-        onClick={() => rpc('Distribute')}
-      />
-      <Button
-        state={state}
-        label='パス'
-        disabled={(state) =>
-          id !== state.current ||
-          !!state.prompts[id] ||
-          !!state.will_flush_task_id
-        }
-        onClick={() => rpc('Pass')}
-      />
+      {state.effect.effect_limits.length > 0 && (
+        <p>
+          効果制限: [
+          {[...state.effect.effect_limits.sort((a, b) => a - b)].join(',')}]
+        </p>
+      )}
+      {state.effect.suit_limits.length > 0 && (
+        <p>縛り: [{[...state.effect.suit_limits].join(',')}]</p>
+      )}
+      {state.effect.is_step && <p>階段状態</p>}
+      {state.effect.revoluted !== state.effect.turn_revoluted && (
+        <p>革命状態</p>
+      )}
 
-      <Button
-        state={state}
-        label='出す'
-        disabled={(state) =>
-          id !== state.current ||
-          !!state.prompts[id] ||
-          !!state.will_flush_task_id
-        }
-        onClick={() => {
-          const serves = selectedHands.map((i) => hands.cards[i])
-          rpc({
-            Serve: {
-              serves,
-            },
-          })
-          resetHands()
-        }}
-      />
-
-      <Button
-        state={state}
-        label='除外から手札に加える'
-        disabled={(state) => state.prompts[id] !== 'excluded'}
-        onClick={() => {
-          const serves = selectedExcludes.map((i) => state.excluded.cards[i])
-          rpc({
-            SelectExcluded: {
-              serves,
-            },
-          })
-          resetExcludes()
-        }}
-      />
-
-      <Button
-        state={state}
-        label='墓地から手札に加える'
-        disabled={(state) => state.prompts[id] !== 'trushes'}
-        onClick={() => {
-          const serves = selectedTrushes.map((i) => state.trushes.cards[i])
-          rpc({
-            SelectTrushes: {
-              serves,
-            },
-          })
-          resetTrushes()
-        }}
-      />
-
-      <Button
-        state={state}
-        label='左隣の人に渡す'
-        disabled={(state) => state.prompts[id] !== id}
-        onClick={() => {
-          const serves = selectedHands.map((i) => hands.cards[i])
-          rpc({
-            SelectPasses: {
-              serves,
-            },
-          })
-          resetHands()
-        }}
-      />
-
-      <Button
-        state={state}
-        label='ワンチャンス'
-        disabled={(state) => {
-          const hands = state?.fields[id] ?? defaultDeck()
-          const disabled_1 = state.effect.effect_limits.includes(1)
-          return (
-            disabled_1 ||
-            !hands.cards.some(
-              (card) => 'Number' in card && card['Number'][1] == 1
-            )
-          )
-        }}
-        onClick={() => {
-          const card = hands.cards.find(
-            (card) => 'Number' in card && card['Number'][1] == 1
-          )!
-          if (!card) {
-            return
+      <div>
+        <Button
+          color='bg-red-700'
+          state={state}
+          label='開始'
+          disabled={(state) => false}
+          onClick={() => rpc('Distribute')}
+        />
+        <Button
+          state={state}
+          label='パス'
+          disabled={(state) =>
+            id !== state.current ||
+            !!state.prompts[id] ||
+            !!state.will_flush_task_id
           }
-          rpc({
-            OneChance: {
-              serves: [card],
-            },
-          })
-        }}
-      />
+          onClick={() => rpc('Pass')}
+        />
+
+        <Button
+          state={state}
+          label='出す'
+          disabled={(state) =>
+            id !== state.current ||
+            !!state.prompts[id] ||
+            !!state.will_flush_task_id
+          }
+          onClick={() => {
+            const serves = selectedHands.map((i) => hands.cards[i])
+            rpc({
+              Serve: {
+                serves,
+              },
+            })
+            resetHands()
+          }}
+        />
+
+        <Button
+          state={state}
+          label='除外から手札に加える'
+          disabled={(state) => state.prompts[id] !== 'excluded'}
+          onClick={() => {
+            const serves = selectedExcludes.map((i) => state.excluded.cards[i])
+            rpc({
+              SelectExcluded: {
+                serves,
+              },
+            })
+            resetExcludes()
+          }}
+        />
+
+        <Button
+          state={state}
+          label='墓地から手札に加える'
+          disabled={(state) => state.prompts[id] !== 'trushes'}
+          onClick={() => {
+            const serves = selectedTrushes.map((i) => state.trushes.cards[i])
+            rpc({
+              SelectTrushes: {
+                serves,
+              },
+            })
+            resetTrushes()
+          }}
+        />
+
+        <Button
+          state={state}
+          label='左隣の人に渡す'
+          disabled={(state) => state.prompts[id] !== id}
+          onClick={() => {
+            const serves = selectedHands.map((i) => hands.cards[i])
+            rpc({
+              SelectPasses: {
+                serves,
+              },
+            })
+            resetHands()
+          }}
+        />
+
+        <Button
+          state={state}
+          label='ワンチャンス'
+          disabled={(state) => {
+            const hands = state?.fields[id] ?? defaultDeck()
+            const disabled_1 = state.effect.effect_limits.includes(1)
+            return (
+              disabled_1 ||
+              !hands.cards.some(
+                (card) => 'Number' in card && card['Number'][1] == 1
+              )
+            )
+          }}
+          onClick={() => {
+            const card = hands.cards.find(
+              (card) => 'Number' in card && card['Number'][1] == 1
+            )!
+            if (!card) {
+              return
+            }
+            rpc({
+              OneChance: {
+                serves: [card],
+              },
+            })
+          }}
+        />
+      </div>
+
+      {state.will_flush_task_id && <p>{sec} 秒後に流れます</p>}
     </div>
   )
 }

@@ -54,8 +54,8 @@ impl Effect {
     }
 }
 
-fn cardinal(n: u8) -> u8 {
-    (n + 10) % 13
+fn cardinal(n: u8) -> i32 {
+    ((n + 10) % 13).into()
 }
 
 fn card_ord(l: &Card, r: &Card) -> Ordering {
@@ -106,7 +106,7 @@ pub fn servable(state: &CareerPokerState, serves: &Vec<Card>) -> bool {
         };
     // check steps
     if state.effect.is_step {
-        ok = ok && cardinal(number(&lasts.cards)) - cardinal(number(serves)) == 1;
+        ok = ok && cardinal(number(serves)) - cardinal(number(&lasts.cards)) == 1;
     }
     // check suits
     if !state.effect.suit_limits.is_empty() {
@@ -123,7 +123,7 @@ pub fn effect_revolution(state: &mut CareerPokerState, _player_id: &str, serves:
 
 pub fn effect_3(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
     if !state.effect.effect_limits.contains(&3) {
-        state.effect.effect_limits.extend(1..13)
+        state.effect.effect_limits.extend(1..=13)
     }
     state.next(player_id);
 }
@@ -194,7 +194,7 @@ pub fn servable_9(state: &CareerPokerState, _serves: &Vec<Card>) -> bool {
 
 pub fn effect_10(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
     if !state.effect.effect_limits.contains(&10) {
-        state.effect.effect_limits.extend(1..9);
+        state.effect.effect_limits.extend(1..10);
     }
     state.next(&player_id);
 }
@@ -228,8 +228,21 @@ pub fn effect_13(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Ca
     }
 }
 
+pub fn effect_one_chance(state: &mut CareerPokerState, player_id: &str, serves: &Vec<Card>) {
+    if let Some(task_id) = state.will_flush_task_id.as_ref() {
+        cancel(state.room_id.clone(), task_id.to_string());
+    }
+    state.flush("trushes".to_string());
+    state.trushes.cards.extend(serves.clone());
+    state.current = Some(player_id.to_string());
+}
+
 pub fn effect_2(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
-    if !state.effect.effect_limits.contains(&2) {
+    let hands = state.fields.get(player_id).unwrap();
+    if !state.effect.effect_limits.contains(&2)
+        && !hands.cards.is_empty()
+        && !state.trushes.cards.is_empty()
+    {
         state.will_flush(player_id, "excluded");
     } else {
         state.next(&player_id);
@@ -453,21 +466,27 @@ impl CareerPokerState {
     }
 
     pub fn one_chance(&mut self, player_id: String, serves: Vec<Card>) {
-        let Some(hand) = self.fields.get_mut(&player_id) else {
+        let Some(hand) = self.fields.get(&player_id) else {
             return;
         };
+        // cannot move up a game using OneChance
         if self.effect.effect_limits.contains(&1) || hand.cards == serves {
             return;
         }
-        remove_items(&mut hand.cards, &serves);
-        if let Some(task_id) = self.will_flush_task_id.as_ref() {
-            cancel(self.room_id.clone(), task_id.to_string());
-        }
 
-        effect_card(self, &player_id, &serves);
-        self.flush("trushes".to_string());
-        self.trushes.cards.extend(serves);
-        self.current = Some(player_id);
+        let hand = self.fields.get_mut(&player_id).unwrap();
+        remove_items(&mut hand.cards, &serves);
+
+        // FIXME: use a result of janken subgame
+        let active_players = self
+            .fields
+            .values()
+            .filter(|hand| !hand.cards.is_empty())
+            .count();
+        if rand() % active_players as u32 != 0 {
+            return;
+        }
+        effect_one_chance(self, &player_id, &serves);
     }
 
     pub fn serve(&mut self, player_id: String, serves: Vec<Card>) {
@@ -528,5 +547,18 @@ mod tests {
         assert_eq!(state.get_relative_player("a", 1), Some("b".to_string()));
         assert_eq!(state.get_relative_player("a", -1), Some("b".to_string()));
         assert_eq!(state.get_relative_player("a", 2), Some("a".to_string()));
+    }
+
+    #[test]
+    fn test_effect_12() {
+        let mut state = CareerPokerState::new("".to_string());
+        state.fields = HashMap::from_iter(vec![
+            ("a".to_string(), Deck::new(vec!["Ah".into()])),
+            ("b".to_string(), Deck::new(vec!["Ah".into()])),
+        ]);
+        state.players = vec!["a".to_string(), "b".to_string()];
+        state.serve("a".to_string(), vec!["Qh".into()]);
+        println!("{:?}", state.effect);
+        assert_eq!(servable(&state, &vec!["Ks".into()]), false);
     }
 }
