@@ -46,26 +46,31 @@ export const useSelects = () => {
 
 export function DeckView<S>(props: DeckViewProps<S>) {
   return (
-    <div>
+    <div style={{ minHeight: '8rem' }}>
       <h2
         style={{
-          color: props.disabled ? 'gray' : 'black',
+          color: props.disabled(props.state) ? 'lightgray' : 'black',
         }}
       >
         {props.label}({props.deck.cards.length})
       </h2>
-      {props.deck.cards.map((card, i) => (
-        <>
-          <CardView
-            key={i}
-            onClick={() =>
-              !props.disabled?.(props.state) && props.onClickCard?.(i)
-            }
-            selected={props.selects?.includes(i) ?? false}
-            card={card}
-          />
-        </>
-      ))}
+      <div
+        style={{ display: 'flex', overflowX: 'scroll', paddingBottom: '2rem' }}
+      >
+        {props.deck.cards.map((card, i) => (
+          <>
+            <CardView
+              style={{ flex: 'auto' }}
+              key={i}
+              onClick={() =>
+                !props.disabled?.(props.state) && props.onClickCard?.(i)
+              }
+              selected={props.selects?.includes(i) ?? false}
+              card={card}
+            />
+          </>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 use card::Card;
-use cdfy_sdk::{fp_export_impl, PluginMeta, State};
+use cdfy_sdk::{fp_export_impl, reserve, PluginMeta, State};
 use serde::{Deserialize, Serialize};
 use state::CareerPokerState;
 
@@ -11,6 +11,7 @@ pub mod state;
 pub enum Action {
     Distribute,
     Pass,
+    Flush { to: String },
     OneChance { serves: Vec<Card> },
     SelectTrushes { serves: Vec<Card> },
     SelectPasses { serves: Vec<Card> },
@@ -24,6 +25,15 @@ impl Into<CareerPokerState> for State {
     }
 }
 
+pub fn will_flush(player_id: String, room_id: String, to: String) -> String {
+    reserve(
+        player_id,
+        room_id,
+        serde_json::to_string(&Action::Flush { to }).unwrap(),
+        5000,
+    )
+}
+
 #[fp_export_impl(cdfy_sdk)]
 pub fn plugin_meta() -> PluginMeta {
     PluginMeta {
@@ -34,7 +44,7 @@ pub fn plugin_meta() -> PluginMeta {
 
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_create_room(player_id: String, room_id: String) -> State {
-    let mut state = CareerPokerState::new();
+    let mut state = CareerPokerState::new(room_id);
     state.players.push(player_id);
     State {
         data: serde_json::to_string(&state).unwrap(),
@@ -60,12 +70,31 @@ pub fn on_leave_player(player_id: String, room_id: String, state: State) -> Stat
 }
 
 #[fp_export_impl(cdfy_sdk)]
+pub fn on_task(task_id: String, state: State) -> State {
+    let mut state: CareerPokerState = serde_json::from_str(&state.data.as_str()).unwrap();
+    state.will_flush_task_id = None;
+    State {
+        data: serde_json::to_string(&state).unwrap(),
+    }
+}
+
+#[fp_export_impl(cdfy_sdk)]
+pub fn on_cancel_task(task_id: String, state: State) -> State {
+    let mut state: CareerPokerState = serde_json::from_str(&state.data.as_str()).unwrap();
+    state.will_flush_task_id = None;
+    State {
+        data: serde_json::to_string(&state).unwrap(),
+    }
+}
+
+#[fp_export_impl(cdfy_sdk)]
 pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> State {
     let mut state: CareerPokerState = serde_json::from_str(&state.data.as_str()).unwrap();
     let action: Action = serde_json::from_str(value.as_str()).unwrap();
     match action {
         Action::Distribute => state.distribute(),
         Action::Pass => state.pass(player_id),
+        Action::Flush { to } => state.flush(to),
         Action::OneChance { serves } => {
             state.one_chance(player_id, serves);
         }

@@ -8,14 +8,13 @@ export interface ButtonProps<S> {
 export function Button<S>(props: ButtonProps<S>) {
   return (
     <>
-      {!props.disabled(props.state) && (
-        <button
-          style={{ margin: '0.5em' }}
-          onClick={(e) => props.onClick(props.state)}
-        >
-          {props.label}
-        </button>
-      )}
+      <button
+        disabled={props.disabled(props.state)}
+        style={{ margin: '0.5em' }}
+        onClick={(e) => props.onClick(props.state)}
+      >
+        {props.label}
+      </button>
     </>
   )
 }

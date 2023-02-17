@@ -3,7 +3,9 @@ use crate::{
     deck::{
         is_same_number, match_suits, number, remove_items, suits, with_jokers, Deck, DeckStyle,
     },
+    will_flush,
 };
+use cdfy_sdk::cancel;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
@@ -95,14 +97,7 @@ pub fn servable(state: &CareerPokerState, serves: &Vec<Card>) -> bool {
     // check river size
     ok = ok
         && match number(serves) {
-            9 if !state.effect.effect_limits.contains(&9) => {
-                river_size
-                    == match river_size {
-                        3 => 1,
-                        1 => 3,
-                        n => n,
-                    }
-            }
+            9 if !state.effect.effect_limits.contains(&9) => servable_9(state, serves),
             _ => serves.len() == river_size,
         };
     // check steps
@@ -147,8 +142,7 @@ pub fn effect_7(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Car
 }
 
 pub fn effect_8(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
-    state.flush();
-    state.current = Some(player_id.to_string());
+    state.will_flush(player_id, "trushes");
 }
 
 pub fn effect_9(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
@@ -157,6 +151,16 @@ pub fn effect_9(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Ca
         Some(3) => Some(1),
         n => n,
     }
+}
+
+pub fn servable_9(state: &CareerPokerState, serves: &Vec<Card>) -> bool {
+    let river_size = state.effect.river_size.unwrap();
+    river_size
+        == match river_size {
+            3 => 1,
+            1 => 3,
+            n => n,
+        }
 }
 
 pub fn effect_10(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
@@ -190,17 +194,8 @@ pub fn effect_1(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Ca
     }
 }
 
-pub fn effect_2(state: &mut CareerPokerState, _player_id: &str, _serves: &Vec<Card>) {
-    state.excluded.cards.extend(
-        state
-            .river
-            .iter()
-            .map(|d| d.cards.clone())
-            .flatten()
-            .collect::<Vec<_>>(),
-    );
-    state.river.clear();
-    state.current = state.last_served_player_id.clone();
+pub fn effect_2(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Card>) {
+    state.will_flush(player_id, "excluded");
 }
 
 pub fn effect_card(state: &mut CareerPokerState, player_id: &str, serves: &Vec<Card>) {
@@ -233,11 +228,13 @@ pub fn effect_card(state: &mut CareerPokerState, player_id: &str, serves: &Vec<C
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CareerPokerState {
+    pub room_id: String,
     pub current: Option<String>,
     pub players: Vec<String>,
     pub excluded: Deck,
     pub trushes: Deck,
     pub river: Vec<Deck>,
+    pub will_flush_task_id: Option<String>,
     pub last_served_player_id: Option<String>,
     pub fields: HashMap<String, Deck>,
     pub effect: Effect,
@@ -246,11 +243,13 @@ pub struct CareerPokerState {
 }
 
 impl CareerPokerState {
-    pub fn new() -> Self {
+    pub fn new(room_id: String) -> Self {
         Self {
+            room_id,
             excluded: Deck::new(),
             trushes: Deck::new(),
             river: vec![],
+            will_flush_task_id: None,
             players: vec![],
             last_served_player_id: None,
             current: None,
@@ -262,9 +261,11 @@ impl CareerPokerState {
 
     pub fn reset(&mut self) {
         *self = Self {
+            room_id: self.room_id.to_string(),
             excluded: Deck::new(),
             trushes: Deck::new(),
             river: vec![],
+            will_flush_task_id: None,
             players: self.players.clone(),
             last_served_player_id: None,
             current: None,
@@ -332,26 +333,38 @@ impl CareerPokerState {
         }
     }
 
-    pub fn flush(&mut self) {
-        self.trushes.cards.extend(
-            self.river
-                .iter()
-                .map(|d| d.cards.clone())
-                .flatten()
-                .collect::<Vec<_>>(),
-        );
+    pub fn will_flush(&mut self, player_id: &str, to: &str) {
+        self.will_flush_task_id = Some(will_flush(
+            player_id.to_string(),
+            self.room_id.to_string(),
+            to.to_string(),
+        ));
+    }
+
+    pub fn flush(&mut self, to: String) {
+        let cards = self
+            .river
+            .iter()
+            .map(|d| d.cards.clone())
+            .flatten()
+            .collect::<Vec<_>>();
+        match to.as_str() {
+            "trushes" => self.trushes.cards.extend(cards),
+            "excluded" => self.excluded.cards.extend(cards),
+            _ => panic!(),
+        };
         self.effect = Effect::new_turn(self.effect.clone());
         self.river.clear();
+        self.current = self.last_served_player_id.clone();
     }
 
     pub fn next(&mut self, player_id: &str) {
         self.current = self.get_relative_player(&player_id, 1);
         if self.current == self.last_served_player_id {
-            self.flush();
+            self.will_flush(player_id, "trushes");
         }
         if self.current.is_none() {
-            self.flush();
-            self.current = self.last_served_player_id.clone();
+            self.will_flush(player_id, "trushes");
         }
     }
 
@@ -405,11 +418,16 @@ impl CareerPokerState {
         let Some(deck) = self.fields.get_mut(&player_id) else {
             return;
         };
+
         remove_items(&mut deck.cards, &serves);
-        effect_card(self, &player_id, &serves);
-        self.flush();
-        self.trushes.cards.extend(serves);
-        self.current = Some(player_id);
+        if let Some(task_id) = self.will_flush_task_id.as_ref() {
+            cancel(self.room_id.clone(), task_id.to_string());
+        }
+
+        // effect_card(self, &player_id, &serves);
+        // self.flush();
+        // self.trushes.cards.extend(serves);
+        // self.current = Some(player_id);
     }
 
     pub fn serve(&mut self, player_id: String, serves: Vec<Card>) {
@@ -423,7 +441,7 @@ impl CareerPokerState {
         self.last_served_player_id = Some(player_id.clone());
 
         effect_card(self, &player_id, &serves);
-        if self.prompts.is_empty() {
+        if self.prompts.is_empty() && self.will_flush_task_id.is_none() {
             self.next(&player_id);
         }
     }
@@ -439,14 +457,14 @@ mod tests {
 
     #[test]
     fn test_servable() {
-        let state = CareerPokerState::new();
+        let state = CareerPokerState::new("".to_string());
         let serves = vec!["3h".into(), "4h".into()];
         assert_eq!(servable(&state, &serves), false);
     }
 
     #[test]
     fn test_get_relative_player() {
-        let mut state = CareerPokerState::new();
+        let mut state = CareerPokerState::new("".to_string());
         state.fields = HashMap::from_iter(vec![
             (
                 "a".to_string(),
