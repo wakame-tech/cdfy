@@ -84,7 +84,7 @@ pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> S
         }
         Action::Cancel => {
             if let Some(task_id) = state.tasks.pop_front() {
-                cancel(task_id);
+                cancel(room_id, task_id);
             }
         }
         Action::Increment => state.count += 1,

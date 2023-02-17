@@ -19,7 +19,7 @@ fp_import! {
     fn rand() -> u32;
 
     /// cancel task by `task_id`
-    fn cancel(task_id: String);
+    fn cancel(room_id: String, task_id: String);
 
     /// reserve task and execute returns `task_id`
     fn reserve(player_id: String, room_id: String, action: String, timeout: u32) -> String;
@@ -40,6 +40,8 @@ fp_export! {
 
     /// fire when task has been executed
     fn on_task(task_id: String, state: State) -> State;
+
+    fn on_cancel_task(task_id: String, state: State) -> State;
 
     fn rpc(player_id: String, room_id: String, state: State, value: String) -> State;
 }

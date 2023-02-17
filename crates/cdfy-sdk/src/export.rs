@@ -1,5 +1,8 @@
 use crate::types::*;
 
+#[fp_bindgen_support::fp_export_signature]
+pub fn on_cancel_task(task_id: String, state: State) -> State;
+
 /// fire when a room is created
 #[fp_bindgen_support::fp_export_signature]
 pub fn on_create_room(player_id: String, room_id: String) -> State;
