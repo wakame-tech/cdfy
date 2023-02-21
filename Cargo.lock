@@ -67,6 +67,7 @@ dependencies = [
 name = "cdfy-sdk"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "fp-bindgen-support",
  "once_cell",
  "rmp-serde",

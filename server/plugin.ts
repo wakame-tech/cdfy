@@ -9,6 +9,9 @@ export const registerPluginFromLocal = async (path: string): Promise<void> => {
     rand() {
       return Math.floor(Math.random() * Math.pow(2, 32))
     },
+    debug(message: string) {
+      console.log(message)
+    },
     cancel(roomId: string, taskId: string) {
       const usecase = new RoomService()
       const room = usecase.cancelTask(roomId, taskId)
@@ -24,7 +27,11 @@ export const registerPluginFromLocal = async (path: string): Promise<void> => {
   const plugin = await Deno.readFile(path)
   const runtime = await createRuntime(plugin, imports)
   const meta = runtime.pluginMeta?.()!
-  console.log(`installed ${meta.name} v${meta.version} @ ${path}`)
+  console.log(
+    `installed ${meta.name} v${meta.version} @ ${path} (${
+      plugin.byteLength / 1000
+    } KB)`
+  )
   plugins[meta.name] = runtime
 }
 

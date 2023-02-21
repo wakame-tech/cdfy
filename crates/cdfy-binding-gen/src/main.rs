@@ -5,6 +5,12 @@ use once_cell::sync::Lazy;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Serializable)]
+pub enum ResultState {
+    Ok(State),
+    Err(String),
+}
+
+#[derive(Serializable)]
 pub struct State {
     pub data: String,
 }
@@ -18,6 +24,8 @@ pub struct PluginMeta {
 fp_import! {
     fn rand() -> u32;
 
+    fn debug(message: String);
+
     /// cancel task by `task_id`
     fn cancel(room_id: String, task_id: String);
 
@@ -30,32 +38,25 @@ fp_export! {
     fn plugin_meta() -> PluginMeta;
 
     /// fire when a room is created
-    fn on_create_room(player_id: String, room_id: String) -> State;
+    fn on_create_room(player_id: String, room_id: String) -> ResultState;
 
     /// fire when join a player
-    fn on_join_player(player_id: String, room_id: String, state: State) -> State;
+    fn on_join_player(player_id: String, room_id: String, state: State) -> ResultState;
 
     /// fire when leave a player
-    fn on_leave_player(player_id: String, room_id: String, state: State) -> State;
+    fn on_leave_player(player_id: String, room_id: String, state: State) -> ResultState;
 
     /// fire when task has been executed
-    fn on_task(task_id: String, state: State) -> State;
+    fn on_task(task_id: String, state: State) -> ResultState;
 
-    fn on_cancel_task(task_id: String, state: State) -> State;
+    fn on_cancel_task(task_id: String, state: State) -> ResultState;
 
-    fn rpc(player_id: String, room_id: String, state: State, value: String) -> State;
+    fn rpc(player_id: String, room_id: String, state: State, value: String) -> ResultState;
 }
 
 static PLUGIN_DEPENDENCIES: Lazy<BTreeMap<&str, CargoDependency>> = Lazy::new(|| {
     BTreeMap::from([
-        // (
-        //     //生成プラグインで必須なcrateを設定
-        //     "regex",
-        //     CargoDependency {
-        //         version: Some("1.6.0"),
-        //         ..CargoDependency::default()
-        //     },
-        // ),
+        ("anyhow", CargoDependency::with_version("1")),
         (
             //このfp-bindgen-supportはほぼ必須
             "fp-bindgen-support",

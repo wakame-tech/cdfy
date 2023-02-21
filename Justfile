@@ -1,5 +1,5 @@
 serve:
-    just plugins
+    just plugin-debug career-poker
     cd server && just run
 
 release:

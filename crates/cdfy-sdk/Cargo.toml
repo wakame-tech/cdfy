@@ -5,6 +5,7 @@ authors = ["wakame-tech"]
 edition = "2018"
 
 [dependencies]
+anyhow = { version = "1" }
 fp-bindgen-support = { version = "2.0.0", features = ["async", "guest"] }
 once_cell = { version = "1" }
 rmp-serde = { version = "1.0" }

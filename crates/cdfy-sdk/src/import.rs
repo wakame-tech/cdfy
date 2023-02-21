@@ -5,6 +5,9 @@ use crate::types::*;
 pub fn cancel(room_id: String, task_id: String);
 
 #[fp_bindgen_support::fp_import_signature]
+pub fn debug(message: String);
+
+#[fp_bindgen_support::fp_import_signature]
 pub fn rand() -> u32;
 
 /// reserve task and execute returns `task_id`

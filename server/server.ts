@@ -33,8 +33,9 @@ io.on('connection', (socket) => {
   console.log(`[connect] id=${socket.id}`)
 
   socket.on('join', async (roomId: string, plugin: string) => {
-    if (await usecase.existRoom(roomId)) {
-      socket.join(roomId)
+    socket.join(roomId)
+
+    if (usecase.existRoom(roomId)) {
       const room = await usecase
         .joinPlayer(socket.id, roomId)
         .catch((e) => console.error(e))
@@ -44,7 +45,6 @@ io.on('connection', (socket) => {
       console.log(`[join] id==${socket.id} room=${roomId}`)
       io.to(roomId).emit('update', room)
     } else {
-      socket.join(roomId)
       const room = await usecase
         .createRoom(socket.id, roomId, plugin)
         .catch((e) => console.error(e))
@@ -73,7 +73,7 @@ io.on('connection', (socket) => {
       `[disconnect] id=${socket.id} rooms=[${Array.from(socket.rooms)}]`
     )
     for (const roomId of socket.rooms) {
-      if (await usecase.existRoom(roomId.toString())) {
+      if (usecase.existRoom(roomId.toString())) {
         const room = await usecase
           .leavePlayer(socket.id, roomId.toString())
           .catch((e) => console.error(e))

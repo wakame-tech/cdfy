@@ -8,6 +8,12 @@ pub struct PluginMeta {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum ResultState {
+    Ok(State),
+    Err(String),
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct State {
     pub data: String,
 }
