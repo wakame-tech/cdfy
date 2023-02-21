@@ -1,12 +1,21 @@
 #[cfg(target_arch = "wasm32")]
-use cdfy_sdk::{cancel, fp_export_impl, reserve, PluginMeta, State};
+use cdfy_sdk::{cancel, fp_export_impl, reserve, PluginMeta, ResultState, State};
 #[cfg(not(target_arch = "wasm32"))]
 use mock::*;
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Debug};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mock;
+
+fn from_err<E: Debug>(s: CounterState, r: anyhow::Result<(), E>) -> ResultState {
+    match r {
+        anyhow::Result::Ok(_) => ResultState::Ok(State {
+            data: serde_json::to_string(&s).unwrap(),
+        }),
+        anyhow::Result::Err(err) => ResultState::Err(format!("{:?}", err)),
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 enum Action {
@@ -47,40 +56,38 @@ pub fn plugin_meta() -> PluginMeta {
 
 #[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_create_room(player_id: String, room_id: String) -> State {
+pub fn on_create_room(player_id: String, room_id: String) -> ResultState {
     let state = CounterState::new();
-    State {
-        data: serde_json::to_string(&state).unwrap(),
-    }
+    from_err::<()>(state, Ok(()))
 }
 
 #[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_join_player(player_id: String, room_id: String, state: State) -> State {
-    state
+pub fn on_join_player(player_id: String, room_id: String, state: State) -> ResultState {
+    let mut state: CounterState = state.into();
+    from_err::<()>(state, Ok(()))
 }
 
 #[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_leave_player(player_id: String, room_id: String, state: State) -> State {
-    state
+pub fn on_leave_player(player_id: String, room_id: String, state: State) -> ResultState {
+    let mut state: CounterState = state.into();
+    from_err::<()>(state, Ok(()))
 }
 
 #[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn on_task(task_id: String, state: State) -> State {
+pub fn on_task(task_id: String, state: State) -> ResultState {
     let mut state: CounterState = state.into();
     if let Some(i) = state.tasks.iter().position(|id| id == &task_id) {
         state.tasks.remove(i);
     }
-    State {
-        data: serde_json::to_string(&state).unwrap(),
-    }
+    from_err::<()>(state, Ok(()))
 }
 
 #[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
-pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> State {
+pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> ResultState {
     let mut state: CounterState = state.into();
     let action: Action = serde_json::from_str(&value).unwrap();
     match action {
@@ -100,7 +107,5 @@ pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> S
         }
         Action::Increment => state.count += 1,
     };
-    State {
-        data: serde_json::to_string(&state).unwrap(),
-    }
+    from_err::<()>(state, Ok(()))
 }

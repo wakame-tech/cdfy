@@ -7,6 +7,8 @@ pub fn rand() -> u32 {
     // rng.gen()
 }
 
+pub fn debug(message: String) {}
+
 /// cancel task by `task_id`
 pub fn cancel(_room_id: String, _task_id: String) {}
 
@@ -17,4 +19,9 @@ pub fn reserve(_player_id: String, _room_id: String, _action: String, _timeout: 
 
 pub struct State {
     pub data: String,
+}
+
+pub enum ResultState {
+    Ok(State),
+    Err(String),
 }

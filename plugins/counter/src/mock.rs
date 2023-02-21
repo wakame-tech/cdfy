@@ -18,3 +18,8 @@ pub fn reserve(_player_id: String, _room_id: String, _action: String, _timeout: 
 pub struct State {
     pub data: String,
 }
+
+pub enum ResultState {
+    Ok(State),
+    Err(String),
+}

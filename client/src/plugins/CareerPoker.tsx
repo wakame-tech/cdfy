@@ -7,27 +7,28 @@ import { DeckView, Deck, defaultDeck, useSelects } from '../component/DeckView'
 
 type Rpc =
   | 'Distribute'
-  | 'Pass'
   | {
-      OneChance: { serves: Card[] }
+      Pass: { player_id: string }
     }
   | {
-      SelectTrushes: {
+      OneChance: { player_id: string; serves: Card[] }
+    }
+  | {
+      Select: {
+        from: string
+        player_id: string
         serves: Card[]
       }
     }
   | {
-      SelectPasses: {
-        serves: Card[]
-      }
-    }
-  | {
-      SelectExcluded: {
+      ServeAnother: {
+        player_id: string
         serves: Card[]
       }
     }
   | {
       Serve: {
+        player_id: string
         serves: Card[]
       }
     }
@@ -45,11 +46,10 @@ interface State {
   room_id: string
   current: string | null
   players: string[]
-  excluded: Deck
-  trushes: Deck
   river: Deck[]
   will_flush_task_id: string | null
   last_served_player_id: string | null
+  // players deck + trushes + excluded
   fields: Record<string, Deck>
   river_size: number | null
   effect: Effect
@@ -128,7 +128,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
           state={state}
           label='除外'
           disabled={(state) => state.prompts[id] !== 'excluded'}
-          deck={state.excluded}
+          deck={state.fields['excluded']}
           selects={selectedExcludes}
           onClickCard={toggleExclude}
         />
@@ -136,7 +136,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
           state={state}
           label='墓地'
           disabled={(state) => state.prompts[id] !== 'trushes'}
-          deck={state.trushes}
+          deck={state.fields['trushes']}
           selects={selectedTrushes}
           onClickCard={toggleTrush}
         />
@@ -186,7 +186,13 @@ export const CarrerPoker = (props: { roomId: string }) => {
             !!state.prompts[id] ||
             !!state.will_flush_task_id
           }
-          onClick={() => rpc('Pass')}
+          onClick={() =>
+            rpc({
+              Pass: {
+                player_id: id,
+              },
+            })
+          }
         />
 
         <Button
@@ -201,6 +207,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
             const serves = selectedHands.map((i) => hands.cards[i])
             rpc({
               Serve: {
+                player_id: id,
                 serves,
               },
             })
@@ -215,7 +222,9 @@ export const CarrerPoker = (props: { roomId: string }) => {
           onClick={() => {
             const serves = selectedExcludes.map((i) => state.excluded.cards[i])
             rpc({
-              SelectExcluded: {
+              Select: {
+                from: 'excluded',
+                player_id: id,
                 serves,
               },
             })
@@ -230,7 +239,9 @@ export const CarrerPoker = (props: { roomId: string }) => {
           onClick={() => {
             const serves = selectedTrushes.map((i) => state.trushes.cards[i])
             rpc({
-              SelectTrushes: {
+              Select: {
+                from: 'trushes',
+                player_id: id,
                 serves,
               },
             })
@@ -245,7 +256,8 @@ export const CarrerPoker = (props: { roomId: string }) => {
           onClick={() => {
             const serves = selectedHands.map((i) => hands.cards[i])
             rpc({
-              SelectPasses: {
+              ServeAnother: {
+                player_id: id,
                 serves,
               },
             })
@@ -275,6 +287,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
             }
             rpc({
               OneChance: {
+                player_id: id,
                 serves: [card],
               },
             })
