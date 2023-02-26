@@ -5,7 +5,7 @@ serve:
 release:
     just plugins
     cd server && just deploy
-    cd client && npm run deploy
+    cd client && npm run build && npm run deploy
 
 plugins:
     just gen

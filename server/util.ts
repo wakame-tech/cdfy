@@ -14,7 +14,7 @@ export const expect = <T>(
   })
 }
 
-export const unwrap = (f: () => ResultState): Promise<State> => {
+export const unwrap = (f: () => ResultState): Promise<State | void> => {
   return new Promise((resolve, reject) => {
     const t = f()
     if (t['Err']) {

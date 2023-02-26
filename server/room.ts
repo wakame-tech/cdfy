@@ -188,7 +188,9 @@ export class RoomService implements IRoomService {
         const state = await unwrap(() =>
           rpc(playerId, roomId, room.state!, JSON.stringify(action))
         )
-        room.state = state
+        if (state) {
+          room.state = state
+        }
       })
     }
     return room

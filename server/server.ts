@@ -64,8 +64,13 @@ io.on('connection', (socket) => {
     )
     const room = await usecase
       .rpc(socket.id, roomId.toString(), value)
-      .catch((e) => console.error(e))
-    io.to(roomId).emit('update', room)
+      .catch((e) => {
+        console.error(e)
+        socket.emit('error', e)
+      })
+    if (room) {
+      io.to(roomId).emit('update', room)
+    }
   })
 
   socket.on('disconnecting', async () => {

@@ -4,6 +4,7 @@ import { Suit, Card } from '../component/CardView'
 import { Button } from '../component/Button'
 import { DebugView } from '../component/Debug'
 import { DeckView, Deck, defaultDeck, useSelects } from '../component/DeckView'
+import { Players } from '../component/Players'
 
 type Rpc =
   | 'Distribute'
@@ -42,7 +43,7 @@ interface Effect {
   revoluted: boolean
 }
 
-interface State {
+export interface State {
   room_id: string
   current: string | null
   players: string[]
@@ -98,9 +99,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
 
   return (
     <div className='App'>
-      <p>
-        room {state.room_id} {state.players.length} players
-      </p>
+      <Players id={id} state={state} />
 
       <div className='flex'>
         <div className='flex items-center mb-4'>
@@ -175,13 +174,14 @@ export const CarrerPoker = (props: { roomId: string }) => {
           color='bg-red-700'
           state={state}
           label='開始'
-          disabled={(state) => false}
+          disabled={(state) => id !== state.players[0]}
           onClick={() => rpc('Distribute')}
         />
         <Button
           state={state}
           label='パス'
           disabled={(state) =>
+            state.river.length === 0 ||
             id !== state.current ||
             !!state.prompts[id] ||
             !!state.will_flush_task_id
@@ -220,7 +220,9 @@ export const CarrerPoker = (props: { roomId: string }) => {
           label='除外から手札に加える'
           disabled={(state) => state.prompts[id] !== 'excluded'}
           onClick={() => {
-            const serves = selectedExcludes.map((i) => state.excluded.cards[i])
+            const serves = selectedExcludes.map(
+              (i) => state.fields['excluded'].cards[i]
+            )
             rpc({
               Select: {
                 from: 'excluded',
@@ -237,7 +239,9 @@ export const CarrerPoker = (props: { roomId: string }) => {
           label='墓地から手札に加える'
           disabled={(state) => state.prompts[id] !== 'trushes'}
           onClick={() => {
-            const serves = selectedTrushes.map((i) => state.trushes.cards[i])
+            const serves = selectedTrushes.map(
+              (i) => state.fields['trushes'].cards[i]
+            )
             rpc({
               Select: {
                 from: 'trushes',

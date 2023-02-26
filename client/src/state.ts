@@ -10,37 +10,44 @@ export interface State {
   data: string
 }
 
+// const pluginId = 'counter'
+export const pluginId: string = 'career_poker'
+
 export const usePlugin = <S, R>(roomId: string | null) => {
-  // const pluginId = 'counter'
-  const pluginId = 'career_poker'
-  const [plugin, setPlugin] = useState(pluginId)
   const [state, setState] = useState<S | null>(null)
 
   useEffect(() => {
+    if (!state) {
+      socket.emit('join', roomId, pluginId)
+    }
     console.debug(`emit join as ${socket.id}`)
-    socket.emit('join', roomId, plugin)
+
     socket.on('update', (room: Room | null) => {
       if (!room) {
         throw 'room is null'
       }
-      console.debug(room)
       const data: S = JSON.parse(room.state.data)
       setState(data)
     })
+    socket.on('error', (e: string) => {
+      console.error(e)
+      alert(e)
+    })
+
     return () => {
       socket.off('update')
+      socket.off('error')
     }
   }, [])
 
   const rpc = (value: R) => {
-    console.debug({ roomId, value })
     socket.emit('rpc', roomId, value)
   }
 
   return {
     id: socket.id,
-    plugin,
     state,
+    setState,
     roomId,
     rpc,
   }
