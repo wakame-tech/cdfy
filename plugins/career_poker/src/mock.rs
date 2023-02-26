@@ -1,10 +1,9 @@
-// #[cfg(not(target = "wasm32-unknown-unknown"))]
-// use rand::{thread_rng, Rng};
+#[cfg(not(target = "wasm32-unknown-unknown"))]
+use rand::{thread_rng, Rng};
 
 pub fn rand() -> u32 {
-    0
-    // let mut rng = thread_rng();
-    // rng.gen()
+    let mut rng = thread_rng();
+    rng.gen()
 }
 
 pub fn debug(message: String) {}

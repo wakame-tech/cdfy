@@ -1,6 +1,7 @@
+#[cfg(target_arch = "wasm32")]
 use anyhow::{anyhow, Result};
 #[cfg(target_arch = "wasm32")]
-use cdfy_sdk::{cancel, debug, fp_export_impl, reserve, PluginMeta, ResultState, State};
+use cdfy_sdk::*;
 #[cfg(not(target_arch = "wasm32"))]
 use mock::*;
 use state::{Action, CareerPokerState};

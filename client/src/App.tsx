@@ -8,7 +8,7 @@ function App() {
   return (
     <div className='p-2'>
       {plugin === 'counter' && <Counter roomId={roomId} />}
-      {plugin === 'career-poker' && <CarrerPoker roomId={roomId} />}
+      {plugin === 'career_poker' && <CarrerPoker roomId={roomId} />}
     </div>
   )
 }

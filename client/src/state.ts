@@ -11,13 +11,12 @@ export interface State {
 }
 
 export const usePlugin = <S, R>(roomId: string | null) => {
-  // const plugin = 'career-poker'
-  const pluginId = 'career-poker'
+  // const pluginId = 'counter'
+  const pluginId = 'career_poker'
   const [plugin, setPlugin] = useState(pluginId)
   const [state, setState] = useState<S | null>(null)
 
   useEffect(() => {
-    // const plugin = 'career-poker'
     console.debug(`emit join as ${socket.id}`)
     socket.emit('join', roomId, plugin)
     socket.on('update', (room: Room | null) => {

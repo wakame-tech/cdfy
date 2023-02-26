@@ -294,7 +294,7 @@ impl CareerPokerState {
     }
 }
 
-fn cardinal(n: u8) -> i32 {
+pub fn cardinal(n: u8) -> i32 {
     ((n + 10) % 13).into()
 }
 

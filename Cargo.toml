@@ -4,6 +4,6 @@ members = [
     "./crates/cdfy-sdk",
 ]
 exclude = [
-    "./plugins/career-poker",
+    "./plugins/career_poker",
     "./plugins/counter",
 ]
