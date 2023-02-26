@@ -5,6 +5,7 @@ use crate::{
     deck::{number, suits, Deck, DeckStyle},
     state::CareerPokerState,
 };
+use anyhow::{anyhow, Result};
 #[cfg(target_arch = "wasm32")]
 use cdfy_sdk::cancel;
 use serde::{Deserialize, Serialize};
@@ -186,7 +187,11 @@ pub fn effect_2(state: &mut CareerPokerState, player_id: &str, _serves: &Vec<Car
     }
 }
 
-pub fn effect_card(state: &mut CareerPokerState, player_id: &str, serves: &Vec<Card>) {
+pub fn effect_card(
+    state: &mut CareerPokerState,
+    player_id: &str,
+    serves: &Vec<Card>,
+) -> Result<()> {
     state.effect.river_size = Some(serves.len());
 
     effect_revolution(state, player_id, serves);
@@ -211,6 +216,10 @@ pub fn effect_card(state: &mut CareerPokerState, player_id: &str, serves: &Vec<C
         13 => effect_13(state, player_id, serves),
         1 => state.next(&player_id),
         2 => effect_2(state, player_id, serves),
-        _ => {}
+        14 => state.next(&player_id),
+        _ => {
+            return Err(anyhow!("invalid number {}", n));
+        }
     };
+    Ok(())
 }

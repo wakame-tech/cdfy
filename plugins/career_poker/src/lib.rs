@@ -110,7 +110,10 @@ pub fn rpc(_player_id: String, _room_id: String, state: State, value: String) ->
     let Ok(mut state) = state else {
         return ResultState::Err(state.unwrap_err().to_string());
     };
-    let action: Action = serde_json::from_str(value.as_str()).unwrap();
+    let action: Result<Action> = serde_json::from_str(value.as_str()).map_err(|e| anyhow!("{}", e));
+    let Ok(action) = action else {
+        return ResultState::Err(action.unwrap_err().to_string());
+    };
     let res = state.action(action);
     from_err(state, res)
 }

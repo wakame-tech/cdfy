@@ -46,7 +46,7 @@ pub enum Action {
     Select {
         from: String,
         player_id: String,
-        cards: Vec<Card>,
+        serves: Vec<Card>,
     },
     ServeAnother {
         player_id: String,
@@ -91,6 +91,20 @@ impl CareerPokerState {
             players: self.players.clone(),
             ..Default::default()
         }
+    }
+
+    fn deck_mut(&mut self, id: &str) -> Result<&mut Deck> {
+        let Some(deck) = self.fields.get_mut(id) else {
+            return Err(anyhow!("field {} not found", id));
+        };
+        Ok(deck)
+    }
+
+    fn deck(&self, id: &str) -> Result<&Deck> {
+        let Some(deck) = self.fields.get(id) else {
+            return Err(anyhow!("field {} not found", id));
+        };
+        Ok(deck)
     }
 
     pub fn join(&mut self, player_id: String) {
@@ -188,63 +202,71 @@ impl CareerPokerState {
     }
 
     fn pass(&mut self, player_id: String) -> Result<()> {
+        if self.river.is_empty() {
+            return Err(anyhow!("cannot pass because river is empty"));
+        }
         self.next(&player_id);
         Ok(())
     }
 
-    fn transfer(&mut self, from_deck_id: &str, to_deck_id: &str, cards: Vec<Card>) {
-        let Some(from_deck) = self.fields.get_mut(from_deck_id) else {
-            return;
-        };
+    fn transfer(&mut self, from_deck_id: &str, to_deck_id: &str, cards: &Vec<Card>) -> Result<()> {
+        let from_deck = self.deck_mut(from_deck_id)?;
         remove_items(&mut from_deck.cards, &cards);
-        let Some(to_deck) = self.fields.get_mut(to_deck_id) else {
-            return;
-        };
-        to_deck.cards.extend(cards);
+        let to_deck = self.deck_mut(to_deck_id)?;
+        to_deck.cards.extend(cards.clone());
+        Ok(())
     }
 
     fn select_trushes(&mut self, player_id: String, serves: Vec<Card>) -> Result<()> {
-        if self.river.last().unwrap().cards.len() != serves.len() {
+        let Some(lasts) = self.river.last() else {
+           return Err(anyhow!("river is empty")); 
+        };
+        let n = self.deck("trushes")?.cards.len().min(lasts.cards.len());
+        if n != serves.len() {
             return Err(anyhow!("invalid serves size"));
         }
-        self.transfer("trushes", player_id.as_str(), serves);
+        self.transfer("trushes", player_id.as_str(), &serves)?;
         self.prompts.remove(&player_id);
         self.next(&player_id);
         Ok(())
     }
 
     fn select_excluded(&mut self, player_id: String, serves: Vec<Card>) -> Result<()> {
-        if self.river.last().unwrap().cards.len() != serves.len() {
+        let Some(lasts) = self.river.last() else {
+           return Err(anyhow!("river is empty")); 
+        };
+        let n = self.deck("trushes")?.cards.len().min(lasts.cards.len());
+        if n != serves.len() {
             return Err(anyhow!("invalid serves size"));
         }
-        self.transfer("excluded", player_id.as_str(), serves);
+        self.transfer("excluded", player_id.as_str(), &serves)?;
         self.prompts.remove(&player_id);
         self.next(&player_id);
         Ok(())
     }
 
     fn select_passes(&mut self, player_id: String, serves: Vec<Card>) -> Result<()> {
-        if self.river.last().unwrap().cards.len() != serves.len() {
+        let Some(lasts) = self.river.last() else {
+           return Err(anyhow!("river is empty")); 
+        };
+        let n = self.deck(&player_id)?.cards.len().min(lasts.cards.len());
+        if n != serves.len() {
             return Err(anyhow!("invalid serves size"));
         }
         let left_id = self.get_relative_player(&player_id, -1).unwrap();
-        self.transfer(&player_id, &left_id, &serves);
+        self.transfer(&player_id, &left_id, &serves)?;
         self.prompts.remove(&player_id);
         self.next(&player_id);
         Ok(())
     }
 
     fn one_chance(&mut self, player_id: String, serves: Vec<Card>) -> Result<()> {
-        let Some(hand) = self.fields.get(&player_id) else {
-            return Err(anyhow!("deck {} not found", player_id));
-        };
+        let hand = self.deck(&player_id)?;
         // cannot move up a game using OneChance
         if self.effect.effect_limits.contains(&1) || hand.cards == serves {
             return Err(anyhow!("cannot move up a game using OneChance"));
         }
-
-        let hand = self.fields.get_mut(&player_id).unwrap();
-        remove_items(&mut hand.cards, &serves);
+        self.transfer(&player_id, "trushes", &serves)?;
 
         // FIXME: use a result of janken subgame
         let active_players = self
@@ -260,16 +282,22 @@ impl CareerPokerState {
     }
 
     fn serve(&mut self, player_id: String, serves: Vec<Card>) -> Result<()> {
-        if !servable(&self, &serves) {
+        if serves.is_empty() || !servable(&self, &serves) {
             return Err(anyhow!("not servable"));
         }
-        let Some(hand) = self.fields.get_mut(&player_id) else {
-            return Err(anyhow!("field {} not found", player_id));
-        };
+        let hand = self.deck_mut(&player_id)?;
         remove_items(&mut hand.cards, &serves);
-        self.last_served_player_id = Some(player_id.clone());
-
         effect_card(self, &player_id, &serves);
+
+        let hand = self.deck(&player_id)?;
+        if hand.cards.is_empty() {
+            self.last_served_player_id = self.get_relative_player(&player_id, 1);
+        } else {
+            self.last_served_player_id = self.get_relative_player(&player_id, 0);
+        }
+        if self.last_served_player_id.is_none() {
+            return Err(anyhow!("end"));
+        }
         Ok(())
     }
 
@@ -282,10 +310,10 @@ impl CareerPokerState {
             Action::Select {
                 from,
                 player_id,
-                cards,
+                serves,
             } => match from.as_str() {
-                "trushes" => self.select_trushes(player_id, cards),
-                "excluded" => self.select_excluded(player_id, cards),
+                "trushes" => self.select_trushes(player_id, serves),
+                "excluded" => self.select_excluded(player_id, serves),
                 _ => Err(anyhow!("field {} not found", from)),
             },
             Action::ServeAnother { player_id, serves } => self.select_passes(player_id, serves),
@@ -359,7 +387,7 @@ pub fn servable(state: &CareerPokerState, serves: &Vec<Card>) -> bool {
 mod tests {
     use crate::{
         deck::Deck,
-        state::{servable, CareerPokerState},
+        state::{servable, Action, CareerPokerState},
     };
     use std::collections::HashMap;
 
@@ -412,5 +440,28 @@ mod tests {
         state.serve("a".to_string(), vec!["Qh".into()]);
         println!("{:?}", state.effect);
         assert_eq!(servable(&state, &vec!["Ks".into()]), false);
+    }
+
+    #[test]
+    fn test_effect_4() {
+        let mut state = CareerPokerState::new("".to_string());
+        state.fields = HashMap::from_iter(vec![
+            ("a".to_string(), Deck::new(vec![])),
+            ("trushes".to_string(), Deck::new(vec!["Ah".into()])),
+        ]);
+        state.river = vec![Deck::new(vec!["4h".into()])];
+        state.players = vec!["a".to_string(), "b".to_string()];
+        state
+            .action(Action::Select {
+                from: "trushes".to_string(),
+                player_id: "a".to_string(),
+                serves: vec!["Ah".into()],
+            })
+            .unwrap();
+        assert_eq!(state.fields.get("trushes").unwrap(), &Deck::new(vec![]));
+        assert_eq!(
+            state.fields.get("a").unwrap(),
+            &Deck::new(vec!["Ah".into()])
+        );
     }
 }
