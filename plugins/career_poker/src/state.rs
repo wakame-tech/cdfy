@@ -228,7 +228,7 @@ impl CareerPokerState {
             return Err(anyhow!("invalid serves size"));
         }
         let left_id = self.get_relative_player(&player_id, -1).unwrap();
-        self.transfer(&left_id, &player_id, serves);
+        self.transfer(&player_id, &left_id, &serves);
         self.prompts.remove(&player_id);
         self.next(&player_id);
         Ok(())
