@@ -1,9 +1,15 @@
-import { getPlugin } from './plugin.ts'
 import { State } from './gen/types.ts'
 import { delay } from 'https://deno.land/std@0.161.0/async/mod.ts'
 import { Lock } from 'https://deno.land/x/async_lock/mod.ts'
-import { io, redis } from './server.ts'
+import { redis } from './redis.ts'
+import { io } from './socket.ts'
 import { expect, unwrap } from './util.ts'
+import { Exports } from './gen/index.ts'
+
+// TODO
+const plugins: Record<string, Exports> = {}
+
+const getPlugin = (name: string): Exports => plugins[name] ?? null
 
 export interface Room {
   plugin: string

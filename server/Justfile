@@ -10,3 +10,6 @@ test:
 deploy:
     #!/bin/zsh
     deployctl deploy --prod --project={{project}} ./server.ts
+
+supabase:
+    deno run -A --location http://localhost ./supabase.ts

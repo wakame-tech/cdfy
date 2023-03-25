@@ -1,10 +1,8 @@
 import { createRuntime, Exports, Imports } from './gen/index.ts'
 import { RoomService } from './room.ts'
-import { io } from './server.ts'
+import { io } from './socket.ts'
 
-const plugins: Record<string, Exports> = {}
-
-export const registerPluginFromLocal = async (path: string): Promise<void> => {
+export const instantiate = (wasm: ArrayBuffer): Promise<Exports> => {
   const imports: Imports = {
     rand() {
       return Math.floor(Math.random() * Math.pow(2, 32))
@@ -24,17 +22,5 @@ export const registerPluginFromLocal = async (path: string): Promise<void> => {
       return taskId
     },
   }
-  const plugin = await Deno.readFile(path)
-  const runtime = await createRuntime(plugin, imports)
-  const meta = runtime.pluginMeta?.()!
-  console.log(
-    `installed ${meta.name} v${meta.version} @ ${path} (${
-      plugin.byteLength / 1000
-    } KB)`
-  )
-  plugins[meta.name] = runtime
-}
-
-export const getPlugin = (name: string): Exports | undefined => {
-  return plugins[name]
+  return createRuntime(wasm, imports)
 }
