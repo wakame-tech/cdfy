@@ -1,5 +1,5 @@
 serve:
-    just plugin-debug career_poker
+    just plugin-debug counter
     cd server && just run
 
 release:
@@ -11,6 +11,7 @@ plugins:
     just gen
     just plugin counter
     just plugin career_poker
+    just plugin janken
 
 gen:
     cd ./crates/cdfy-binding-gen && cargo run

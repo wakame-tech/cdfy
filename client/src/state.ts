@@ -11,7 +11,8 @@ export interface State {
 }
 
 // const pluginId = 'counter'
-export const pluginId: string = 'career_poker'
+// export const pluginId: string = 'career_poker'
+export const pluginId: string = 'counter'
 
 export const usePlugin = <S, R>(roomId: string | null) => {
   const [state, setState] = useState<S | null>(null)
@@ -41,7 +42,7 @@ export const usePlugin = <S, R>(roomId: string | null) => {
   }, [])
 
   const rpc = (value: R) => {
-    socket.emit('rpc', roomId, value)
+    socket.emit('rpc', roomId, socket.id, value)
   }
 
   return {
