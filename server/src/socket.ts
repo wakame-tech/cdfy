@@ -1,16 +1,13 @@
 import { Server } from './deps.ts'
-import { Room, existRoom, getRoom, saveRoom } from './rooms.ts'
-import { getPluginPackageFromLocal } from './plugin/registry.ts'
+import { Room, LocalRoomRepository, IRoomRepository } from './rooms.ts'
 import {
-  instantiate,
-  onJoinPlayer,
-  onLeavePlayer,
-  rpc,
-} from './plugin/runtime.ts'
-import { onCreateRoom } from './plugin/runtime.ts'
-
-const origin = Deno.env.get('ORIGIN')!
-console.log(origin)
+  PluginRegistrarService,
+  registerLocalPackages,
+} from './registrar/PluginRegistrarService.ts'
+import { instantiate, Runtime } from './runtime/runtime.ts'
+import { RedisTaskRunner } from './runtime/task.ts'
+import { LocalPluginMetaRepository } from './registrar/PluginMetaRepository.ts'
+import { LocalWasmStorage } from './registrar/wasmStorage.ts'
 
 export const io = new Server({
   connectTimeout: 5000,
@@ -20,75 +17,110 @@ export const io = new Server({
   },
 })
 
-const onJoinEvent = async (
-  roomId: string,
-  playerId: string,
-  plugin: string
-): Promise<Room> => {
-  if (await existRoom(roomId)) {
-    console.log(`[join] player==${playerId} room=${roomId}`)
-    const room = await getRoom(roomId)
-    if (!room) {
+export interface IRoomEventListener {
+  onJoinEvent(roomId: string, playerId: string, pluginId: string): Promise<void>
+  onDisconnectEvent(roomId: string, playerId: string): Promise<void>
+  onRpcEvent(roomId: string, playerId: string, action: unknown): Promise<void>
+}
+
+export class RoomEventListerner implements IRoomEventListener {
+  runtime: Runtime | null
+
+  constructor(
+    private pluginRegistrarService: PluginRegistrarService,
+    private roomRepository: IRoomRepository
+  ) {
+    this.runtime = null
+  }
+
+  async onJoinEvent(
+    roomId: string,
+    playerId: string,
+    pluginId: string
+  ): Promise<void> {
+    if (await this.roomRepository.exist(roomId)) {
+      console.log(`[join] player==${playerId} room=${roomId}`)
+      const room = await this.roomRepository.get(roomId)
+      if (!room || !this.runtime) {
+        throw 'room not found'
+      }
+      if (room.players.has(playerId)) {
+        return
+      }
+      const newRoom: Room = {
+        ...room,
+        players: room.players.add(playerId),
+        state: await this.runtime.onJoinPlayer(room.state, playerId, room.id),
+      }
+      console.debug(room)
+      await this.roomRepository.save(newRoom)
+    } else {
+      console.log(
+        `[create] player=${playerId} room=${roomId} (plugin = ${pluginId})`
+      )
+      const pkg = await this.pluginRegistrarService.fetchPackage(pluginId)
+      console.debug(`package ${pluginId} found`)
+      const exports = await instantiate(
+        pkg.wasm,
+        new RedisTaskRunner(this.roomRepository)
+      )
+      this.runtime = new Runtime(exports)
+      console.debug(`package ${pluginId} succesfully instantiated`)
+
+      const state = await this.runtime.onCreateRoom(playerId, roomId)
+      const room: Room = {
+        id: roomId,
+        players: new Set([playerId]),
+        instance: exports,
+        state,
+      }
+      console.debug(room)
+      await this.roomRepository.save(room)
+    }
+  }
+
+  async onDisconnectEvent(roomId: string, playerId: string): Promise<void> {
+    const room = await this.roomRepository.get(roomId)
+    if (!room || !this.runtime) {
+      throw 'room not found'
+    }
+    room.players.delete(playerId)
+    const newRoom: Room = {
+      ...room,
+      state: await this.runtime.onLeavePlayer(room.state, playerId, roomId),
+    }
+    console.debug(room)
+    await this.roomRepository.save(newRoom)
+  }
+
+  async onRpcEvent(
+    roomId: string,
+    playerId: string,
+    action: unknown
+  ): Promise<void> {
+    console.log(
+      `[rpc] id=${playerId} room=${roomId}, value=${JSON.stringify(action)}`
+    )
+    const room = await this.roomRepository.get(roomId)
+    if (!room || !this.runtime) {
       throw 'room not found'
     }
     const newRoom = {
       ...room,
-      state: await onJoinPlayer(room.instance, room.state, playerId, room.id),
+      state: await this.runtime.rpc(room.state, playerId, room.id, action),
     }
-    await saveRoom(newRoom)
-    return newRoom
-  } else {
-    console.log(
-      `[create] player=${playerId} room=${roomId} (plugin = ${plugin})`
-    )
-    const pkg = await getPluginPackageFromLocal('./counter.wasm')
-    const instance = await instantiate(pkg.wasm)
-    const state = await onCreateRoom(instance, playerId, roomId)
-    const room: Room = {
-      id: roomId,
-      instance,
-      state,
-    }
-    await saveRoom(room)
-    return room
+    console.debug(newRoom)
+    await this.roomRepository.save(newRoom)
   }
 }
 
-const onDisconnectEvent = async (
-  roomId: string,
-  playerId: string
-): Promise<Room> => {
-  const room = await getRoom(roomId)
-  if (!room) {
-    throw 'room not found'
-  }
-  const newRoom = {
-    ...room,
-    state: await onLeavePlayer(room.instance, room.state, playerId, roomId),
-  }
-  await saveRoom(newRoom)
-  return newRoom
-}
+const pluginMetaRepository = new LocalPluginMetaRepository()
+await registerLocalPackages(pluginMetaRepository)
 
-const onRpcEvent = async (
-  roomId: string,
-  playerId: string,
-  action: unknown
-): Promise<Room> => {
-  console.log(
-    `[rpc] id=${playerId} room=${roomId}, value=${JSON.stringify(action)}`
-  )
-  const room = await getRoom(roomId)
-  if (!room) {
-    throw 'room not found'
-  }
-  const newRoom = {
-    ...room,
-    state: await rpc(room.instance, room.state, playerId, room.id, action),
-  }
-  await saveRoom(newRoom)
-  return newRoom
-}
+const listener = new RoomEventListerner(
+  new PluginRegistrarService(pluginMetaRepository, new LocalWasmStorage()),
+  new LocalRoomRepository((room) => io.to(room.id).emit('update', room))
+)
 
 io.on('connection', (socket) => {
   let currentRoomId: string
@@ -97,21 +129,19 @@ io.on('connection', (socket) => {
   socket.on('join', async (roomId: string, plugin: string) => {
     socket.join(roomId)
     currentRoomId = roomId
-    const newRoom = await onJoinEvent(roomId, socket.id, plugin).catch((e) => {
+    await listener.onJoinEvent(roomId, socket.id, plugin).catch((e) => {
       console.error(e)
       socket.emit('error', e)
     })
-    io.to(roomId).emit('update', newRoom)
   })
 
   socket.on(
     'rpc',
     async (roomId: string, playerId: string, action: unknown) => {
-      const newRoom = await onRpcEvent(roomId, playerId, action).catch((e) => {
+      await listener.onRpcEvent(roomId, playerId, action).catch((e) => {
         console.error(e)
         socket.emit('error', e)
       })
-      io.to(roomId).emit('update', newRoom)
     }
   )
 
@@ -122,13 +152,10 @@ io.on('connection', (socket) => {
 
     for (const roomId of socket.rooms) {
       socket.leave(roomId)
-      const newRoom = await onDisconnectEvent(currentRoomId, socket.id).catch(
-        (e) => {
-          console.error(e)
-          socket.emit('error', e)
-        }
-      )
-      io.to(roomId).emit('update', newRoom)
+      await listener.onDisconnectEvent(currentRoomId, socket.id).catch((e) => {
+        console.error(e)
+        socket.emit('error', e)
+      })
     }
   })
 })

@@ -1,4 +1,4 @@
-import { connect } from './deps.ts'
+import { connect } from '../deps.ts'
 
 const hostname = Deno.env.get('REDIS_HOST')!
 const port = Deno.env.get('REDIS_PORT')!

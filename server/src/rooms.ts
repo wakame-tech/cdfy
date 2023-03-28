@@ -1,21 +1,37 @@
 import { Exports, State } from './deps.ts'
 
-const rooms: Record<string, Room> = {}
-
 export interface Room {
   id: string
+  players: Set<string>
   instance: Exports
   state: State
 }
 
-export const existRoom = (id: string): Promise<boolean> => {
-  return Promise.resolve(Object.keys(rooms).includes(id))
+export interface IRoomRepository {
+  exist(id: string): Promise<boolean>
+  get(id: string): Promise<Room | null>
+  save(room: Room): Promise<void>
 }
 
-export const getRoom = (id: string): Promise<Room | null> => {
-  return Promise.resolve(rooms[id])
-}
+export class LocalRoomRepository implements IRoomRepository {
+  rooms: Record<string, Room> = {}
 
-export const saveRoom = async (room: Room): Promise<void> => {
-  rooms[room.id] = room
+  constructor(private updateCallBack: (room: Room) => void) {
+    this.rooms = {}
+  }
+
+  exist(id: string): Promise<boolean> {
+    return Promise.resolve(Object.keys(this.rooms).includes(id))
+  }
+
+  get(id: string): Promise<Room | null> {
+    return Promise.resolve(this.rooms[id])
+  }
+
+  save(room: Room): Promise<void> {
+    this.rooms[room.id] = room
+    console.debug(`update callback: ${JSON.stringify(room.state.data)}`)
+    this.updateCallBack(room)
+    return Promise.resolve()
+  }
 }
