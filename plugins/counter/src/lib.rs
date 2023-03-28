@@ -1,7 +1,7 @@
 #[cfg(target_arch = "wasm32")]
 use anyhow::{anyhow, Result};
 #[cfg(target_arch = "wasm32")]
-use cdfy_sdk::{cancel, debug, fp_export_impl, reserve, PluginMeta, ResultState, State};
+use cdfy_sdk::{debug, fp_export_impl, reserve, PluginMeta, ResultState, State};
 #[cfg(not(target_arch = "wasm32"))]
 use mock::*;
 use serde::{Deserialize, Serialize};
@@ -117,11 +117,9 @@ pub fn rpc(player_id: String, room_id: String, state: State, value: String) -> R
             state.tasks.push_back(task_id);
         }
         Action::Cancel => {
-            if let Some(task_id) = state.tasks.pop_front() {
-                cancel(room_id, task_id);
-            }
+            state.tasks.pop_front();
         }
-        Action::Increment => state.count += 1,
+        Action::Increment => state.count += 2,
     };
     from_err::<()>(state, Ok(()))
 }

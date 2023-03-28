@@ -1,9 +1,5 @@
 use crate::types::*;
 
-/// cancel task by `task_id`
-#[fp_bindgen_support::fp_import_signature]
-pub fn cancel(room_id: String, task_id: String);
-
 #[fp_bindgen_support::fp_import_signature]
 pub fn debug(message: String);
 

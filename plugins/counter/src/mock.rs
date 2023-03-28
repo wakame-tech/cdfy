@@ -7,9 +7,6 @@ pub fn rand() -> u32 {
     // rng.gen()
 }
 
-/// cancel task by `task_id`
-pub fn cancel(_room_id: String, _task_id: String) {}
-
 /// reserve task and execute returns `task_id`
 pub fn reserve(_player_id: String, _room_id: String, _action: String, _timeout: u32) -> String {
     "dummy".to_string()
