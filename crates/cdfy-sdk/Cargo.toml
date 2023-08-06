@@ -1,7 +1,6 @@
 [package]
 name = "cdfy-sdk"
 version = "0.1.0"
-authors = ["wakame-tech"]
 edition = "2018"
 
 [dependencies]

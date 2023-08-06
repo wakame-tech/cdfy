@@ -19,9 +19,9 @@ gen:
 plugin name:
     cd ./plugins/{{name}} && cargo build --release --target=wasm32-unknown-unknown
     wasmer inspect ./plugins/{{name}}/target/wasm32-unknown-unknown/release/{{name}}.wasm
-    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/release/{{name}}.wasm ./server
+    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/release/{{name}}.wasm .cache/
 
 plugin-debug name:
     cd ./plugins/{{name}} && cargo build --target=wasm32-unknown-unknown
     wasmer inspect ./plugins/{{name}}/target/wasm32-unknown-unknown/debug/{{name}}.wasm
-    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/debug/{{name}}.wasm ./server
+    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/debug/{{name}}.wasm .cache/
