@@ -1,11 +1,8 @@
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-use anyhow::Result;
-use axum::{extract::Path, http::StatusCode, Json};
-use redis::{Commands, RedisError};
-use serde::{Deserialize, Serialize};
-
-static REDIS_ADDR: &str = "redis://127.0.0.1";
+use crate::runner::PluginRunner;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Room {
@@ -23,69 +20,63 @@ impl Room {
         }
     }
 
-    pub fn join(&mut self, user_id: String) {
-        self.users.insert(user_id);
+    fn get_state(&self, plugin_id: &str) -> Result<String> {
+        self.states
+            .get(plugin_id)
+            .cloned()
+            .ok_or(anyhow!("state of {} not found", plugin_id))
     }
-}
 
-type ApiRespnse<T> = Result<Json<T>, (StatusCode, String)>;
+    fn update_state(&mut self, plugin_id: String, state: String) {
+        self.states.insert(plugin_id, state);
+    }
 
-fn into_resp(e: RedisError) -> (StatusCode, String) {
-    (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-}
+    pub fn join(&mut self, user_id: String) -> Result<()> {
+        self.users.insert(user_id.clone());
+        for (k, state) in self.states.iter_mut() {
+            let runner = PluginRunner::new(&self.room_id, &k)?;
+            *state = runner.on_join(state.to_string(), user_id.clone())?;
+        }
+        Ok(())
+    }
 
-pub async fn create_room(Path(room_id): Path<String>) -> ApiRespnse<String> {
-    tracing::debug!("crate_room {}", room_id);
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
+    pub fn leave(&mut self, user_id: String) -> Result<()> {
+        self.users.remove(&user_id);
+        for (k, state) in self.states.iter_mut() {
+            let runner = PluginRunner::new(&self.room_id, &k)?;
+            *state = runner.on_leave(state.to_string(), user_id.clone())?;
+        }
+        Ok(())
+    }
 
-    let key = format!("rooms:{}", room_id);
-    let room = Room::new(room_id);
-    let room = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room).map_err(into_resp)?;
-    Ok(Json("ok".to_string()))
-}
+    pub fn load_plugin(&mut self, plugin_id: String) -> Result<()> {
+        let runner = PluginRunner::new(&self.room_id, &plugin_id)?;
+        let state = runner.load()?;
+        self.states.insert(plugin_id, state);
+        Ok(())
+    }
 
-pub async fn get_room(Path(room_id): Path<String>) -> ApiRespnse<Room> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
+    pub fn message(&mut self, plugin_id: String, message: String) -> Result<()> {
+        let runner = PluginRunner::new(&self.room_id, &plugin_id)?;
+        let state = self.get_state(&plugin_id)?;
+        let state = runner.message(state, message)?;
+        self.update_state(plugin_id, state);
+        Ok(())
+    }
 
-    let key = format!("rooms:{}", room_id);
-    let room: String = con.get(&key).map_err(into_resp)?;
-    let room: Room = serde_json::from_str(&room).unwrap();
-    Ok(Json(room))
-}
+    pub fn on_task(&mut self, plugin_id: String, task_id: String) -> Result<()> {
+        let runner = PluginRunner::new(&self.room_id, &plugin_id)?;
+        let state = self.get_state(&plugin_id)?;
+        let state = runner.on_task(state, task_id)?;
+        self.update_state(plugin_id, state);
+        Ok(())
+    }
 
-pub async fn list_rooms() -> ApiRespnse<Vec<String>> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
-
-    let room_keys = con
-        .scan_match("rooms:*")
-        .map_err(into_resp)?
-        .into_iter()
-        .collect::<Vec<String>>();
-
-    Ok(Json(room_keys))
-}
-
-pub async fn join_room(Path((room_id, user_id)): Path<(String, String)>) -> ApiRespnse<()> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
-    let key = format!("rooms:{}", room_id);
-    let room: String = con.get(&key).map_err(into_resp)?;
-    dbg!(&room);
-    let mut room: Room = serde_json::from_str(&room).unwrap();
-    room.join(user_id);
-    let room = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room).map_err(into_resp)?;
-    Ok(Json(()))
-}
-
-pub async fn delete_room(Path(room_id): Path<String>) -> ApiRespnse<()> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
-    let key = format!("rooms:{}", room_id);
-    let _: () = con.del(key).map_err(into_resp)?;
-    Ok(Json(()))
+    pub fn on_cancel_task(&mut self, plugin_id: String, task_id: String) -> Result<()> {
+        let runner = PluginRunner::new(&self.room_id, &plugin_id)?;
+        let state = self.get_state(&plugin_id)?;
+        let state = runner.on_cancel_task(state, task_id)?;
+        self.update_state(plugin_id, state);
+        Ok(())
+    }
 }

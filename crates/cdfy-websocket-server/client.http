@@ -4,7 +4,25 @@
 POST {{api}}/rooms/a
 
 ###
-POST {{api}}/rooms/a/u
+# load plugin
+POST {{api}}/rooms/a/counter
+
+###
+# join
+POST {{api}}/rooms/a/join/u
+
+###
+# message plugin
+POST {{api}}/rooms/a/counter/message
+Content-Type: application/json
+
+{
+  "Message": {
+    "player_id": "u",
+    "room_id": "a",
+    "message": "Increment"
+  }
+}
 
 ###
 GET {{api}}/rooms/a
