@@ -4,6 +4,7 @@ members = [
     "./crates/cdfy-sdk",
     "./crates/cdfy-sdk-support",
     "./crates/cdfy-runtime",
+    "./crates/cdfy-websocket-server"
 ]
 exclude = [
     "./plugins"

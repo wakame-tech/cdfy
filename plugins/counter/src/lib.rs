@@ -22,11 +22,17 @@ pub fn default_state() -> IResult {
 #[cfg(target_arch = "wasm32")]
 #[fp_export_impl(cdfy_sdk)]
 pub fn on_event(state: String, event: String) -> IResult {
-    let Ok(mut state) = serde_json::from_str::<CounterState>(&state) else {
-        return IResult::Err("state deserialize error".to_string());
+    let mut state = match serde_json::from_str::<CounterState>(&state) {
+        Ok(s) => s,
+        Err(e) => {
+            return IResult::Err(e.to_string());
+        }
     };
-    let Ok(event) = serde_json::from_str::<Event<Message>>(&event) else {
-        return IResult::Err("event deserialize error".to_string());
+    let event = match serde_json::from_str::<Event<Message>>(&event) {
+        Ok(ev) => ev,
+        Err(e) => {
+            return IResult::Err(e.to_string());
+        }
     };
     if let Err(e) = state.on_event(event) {
         return IResult::Err(e.to_string());
