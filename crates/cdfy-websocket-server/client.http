@@ -1,0 +1,16 @@
+@api = http://localhost:1234
+
+###
+POST {{api}}/rooms/a
+
+###
+POST {{api}}/rooms/a/u
+
+###
+GET {{api}}/rooms/a
+
+###
+GET {{api}}/rooms
+
+###
+DELETE {{api}}/rooms/a
