@@ -11,6 +11,20 @@ pub struct Room {
     states: HashMap<String, String>,
 }
 
+#[cfg_attr(doc, aquamarine::aquamarine)]
+/// ```mermaid
+/// sequenceDiagram
+///   participant ClientPlugin
+///   participant Runtime
+///   participant ServerPlugin
+///   Runtime->>Runtime: LoadPlugin
+///   ClientPlugin->>Runtime: join
+///   Runtime->>ServerPlugin: OnJoinPlayer
+///   ClientPlugin->>Runtime: message
+///   Runtime->>ServerPlugin: OnMessage
+///   ClientPlugin->>Runtime: leave
+///   Runtime->>ServerPlugin: OnLeavePlayer
+/// ```
 impl Room {
     pub fn new(room_id: String) -> Self {
         Self {

@@ -19,3 +19,4 @@ anyhow = "1.0"
 redis = "0.23.2"
 cdfy-runtime = { path = "../cdfy-runtime" }
 cdfy-sdk-support = { path = "../cdfy-sdk-support" }
+aquamarine = "0.3.1"
