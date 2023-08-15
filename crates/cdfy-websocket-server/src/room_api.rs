@@ -11,16 +11,16 @@ fn into_resp(e: RedisError) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
 }
 
-pub async fn create_room(Path(room_id): Path<String>) -> ApiRespnse<String> {
+pub async fn create_room(Path(room_id): Path<String>) -> ApiRespnse<Room> {
     tracing::debug!("crate_room {}", room_id);
     let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
     let mut con = client.get_connection().map_err(into_resp)?;
 
     let key = format!("rooms:{}", room_id);
     let room = Room::new(room_id);
-    let room = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room).map_err(into_resp)?;
-    Ok(Json("ok".to_string()))
+    let room_json = serde_json::to_string(&room).unwrap();
+    let _: () = con.set(&key, room_json).map_err(into_resp)?;
+    Ok(Json(room))
 }
 
 pub async fn get_room(Path(room_id): Path<String>) -> ApiRespnse<Room> {
@@ -46,16 +46,17 @@ pub async fn list_rooms() -> ApiRespnse<Vec<String>> {
     Ok(Json(room_keys))
 }
 
-pub async fn join_room(Path((room_id, user_id)): Path<(String, String)>) -> ApiRespnse<()> {
+pub async fn join_room(Path((room_id, user_id)): Path<(String, String)>) -> ApiRespnse<Room> {
     let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
     let mut con = client.get_connection().map_err(into_resp)?;
     let key = format!("rooms:{}", room_id);
     let room: String = con.get(&key).map_err(into_resp)?;
     let mut room: Room = serde_json::from_str(&room).unwrap();
-    room.join(user_id);
-    let room = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room).map_err(into_resp)?;
-    Ok(Json(()))
+    room.join(user_id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let room_json = serde_json::to_string(&room).unwrap();
+    let _: () = con.set(&key, room_json).map_err(into_resp)?;
+    Ok(Json(room))
 }
 
 pub async fn delete_room(Path(room_id): Path<String>) -> ApiRespnse<()> {
@@ -66,7 +67,7 @@ pub async fn delete_room(Path(room_id): Path<String>) -> ApiRespnse<()> {
     Ok(Json(()))
 }
 
-pub async fn load_plugin(Path((room_id, plugin_id)): Path<(String, String)>) -> ApiRespnse<()> {
+pub async fn load_plugin(Path((room_id, plugin_id)): Path<(String, String)>) -> ApiRespnse<Room> {
     tracing::info!("room {} load {}", room_id, plugin_id);
     let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
     let mut con = client.get_connection().map_err(into_resp)?;
@@ -78,9 +79,9 @@ pub async fn load_plugin(Path((room_id, plugin_id)): Path<(String, String)>) -> 
     room.load_plugin(plugin_id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let room = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room).map_err(into_resp)?;
-    Ok(Json(()))
+    let room_json = serde_json::to_string(&room).unwrap();
+    let _: () = con.set(&key, room_json).map_err(into_resp)?;
+    Ok(Json(room))
 }
 
 pub async fn message_plugin(
