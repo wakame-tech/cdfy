@@ -1,8 +1,11 @@
 [workspace]
 members = [
     "./crates/cdfy-binding-gen",
-    "./crates/cdfy-sdk",
+    "./crates/cdfy-sdk-core",
+    "./crates/cdfy-server-sdk",
+    "./crates/cdfy-server-sdk-mock",
+    "./crates/cdfy-client-sdk",
+    "./crates/cdfy-runtime",
+    "./crates/cdfy-server",
 ]
-exclude = [
-    "./plugins"
-]
+exclude = ["./plugins"]

@@ -9,19 +9,18 @@ release:
 
 plugins:
     just gen
-    just plugin counter
+    just plugin counter-server
     just plugin career_poker
-    just plugin janken
 
 gen:
     cd ./crates/cdfy-binding-gen && cargo run
 
 plugin name:
     cd ./plugins/{{name}} && cargo build --release --target=wasm32-unknown-unknown
-    wasmer inspect ./plugins/{{name}}/target/wasm32-unknown-unknown/release/{{name}}.wasm
-    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/release/{{name}}.wasm ./server
+    wasmer inspect ./plugins/{{name}}/target/wasm32-unknown-unknown/release/*.wasm
+    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/release/*.wasm .cache/
 
 plugin-debug name:
     cd ./plugins/{{name}} && cargo build --target=wasm32-unknown-unknown
-    wasmer inspect ./plugins/{{name}}/target/wasm32-unknown-unknown/debug/{{name}}.wasm
-    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/debug/{{name}}.wasm ./server
+    wasmer inspect ./plugins/{{name}}/target/wasm32-unknown-unknown/debug/*.wasm
+    cp ./plugins/{{name}}/target/wasm32-unknown-unknown/debug/*.wasm .cache/

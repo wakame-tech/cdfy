@@ -1,0 +1,34 @@
+@api = http://localhost:1234
+
+###
+POST {{api}}/rooms/a
+
+###
+# load plugin
+POST {{api}}/rooms/a/plugins/counter
+
+###
+# join
+POST {{api}}/rooms/a/join/u
+
+###
+# message plugin
+POST {{api}}/rooms/a/plugins/counter/message
+Content-Type: application/json
+
+{
+  "Message": {
+    "player_id": "u",
+    "room_id": "a",
+    "message": "Increment"
+  }
+}
+
+###
+GET {{api}}/rooms/a
+
+###
+GET {{api}}/rooms
+
+###
+DELETE {{api}}/rooms/a

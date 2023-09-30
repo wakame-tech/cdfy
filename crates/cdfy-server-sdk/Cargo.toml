@@ -1,0 +1,11 @@
+[package]
+name = "cdfy-server-sdk"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+anyhow = { version = "1" }
+fp-bindgen-support = { version = "2.0.0", features = ["async", "guest"] }
+once_cell = { version = "1" }
+rmp-serde = { version = "1.0" }
+serde = { version = "1.0", features = ["derive"] }
