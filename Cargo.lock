@@ -363,6 +363,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "cdfy-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "cdfy-runtime",
+ "cdfy-sdk-core",
+ "futures",
+ "redis",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "cdfy-server-sdk"
 version = "0.1.0"
 dependencies = [
@@ -379,25 +398,6 @@ version = "0.1.0"
 dependencies = [
  "cdfy-server-sdk",
  "rand",
-]
-
-[[package]]
-name = "cdfy-websocket-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "cdfy-runtime",
- "cdfy-sdk-core",
- "futures",
- "redis",
- "serde",
- "serde_json",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

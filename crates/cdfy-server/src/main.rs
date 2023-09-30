@@ -9,7 +9,7 @@ mod room_api;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_str("cdfy_websocket_server=debug").unwrap())
+        .with_env_filter(EnvFilter::from_str("cdfy_server=debug").unwrap())
         .init();
     tracing::info!("server started");
 
