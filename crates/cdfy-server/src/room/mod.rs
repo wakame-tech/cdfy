@@ -19,8 +19,6 @@ pub struct Room {
     states: HashMap<String, String>,
 }
 
-const WASM: &[u8] = include_bytes!("../../../../.cache/counter_server.wasm");
-
 impl Room {
     pub fn new(room_id: String) -> Self {
         Self {
@@ -44,7 +42,7 @@ impl Room {
     pub fn join(&mut self, user_id: String) -> Result<()> {
         self.users.insert(user_id.clone());
         for (_, state) in self.states.iter_mut() {
-            let plugin = WasmPlugin::new(WASM)?;
+            let plugin = WasmPlugin::default();
             *state = plugin.on_join(state.to_string(), self.room_id.clone(), user_id.clone())?;
         }
         Ok(())
@@ -53,21 +51,21 @@ impl Room {
     pub fn leave(&mut self, user_id: String) -> Result<()> {
         self.users.remove(&user_id);
         for (_, state) in self.states.iter_mut() {
-            let plugin = WasmPlugin::new(WASM)?;
+            let plugin = WasmPlugin::default();
             *state = plugin.on_leave(state.to_string(), self.room_id.clone(), user_id.clone())?;
         }
         Ok(())
     }
 
     pub fn load_plugin(&mut self, plugin_id: String) -> Result<()> {
-        let plugin = WasmPlugin::new(WASM)?;
+        let plugin = WasmPlugin::default();
         let state = plugin.load()?;
         self.states.insert(plugin_id, state);
         Ok(())
     }
 
     pub fn message(&mut self, user_id: String, plugin_id: String, message: String) -> Result<()> {
-        let plugin = WasmPlugin::new(WASM)?;
+        let plugin = WasmPlugin::default();
         let state = self.get_state(&plugin_id)?;
         let state = plugin.message(state, self.room_id.clone(), user_id.clone(), message)?;
         tracing::debug!("state={}", state);
