@@ -5,7 +5,7 @@ POST {{api}}/rooms/a
 
 ###
 # load plugin
-POST {{api}}/rooms/a/counter
+POST {{api}}/rooms/a/plugins/counter
 
 ###
 # join
@@ -13,7 +13,7 @@ POST {{api}}/rooms/a/join/u
 
 ###
 # message plugin
-POST {{api}}/rooms/a/counter/message
+POST {{api}}/rooms/a/plugins/counter/message
 Content-Type: application/json
 
 {
