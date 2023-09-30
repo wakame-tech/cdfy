@@ -73,20 +73,4 @@ impl Room {
         self.update_state(plugin_id, state);
         Ok(())
     }
-
-    pub fn on_task(&mut self, plugin_id: String, task_id: String) -> Result<()> {
-        let runner = WasmPlugin::new(WASM)?;
-        let state = self.get_state(&plugin_id)?;
-        let state = runner.on_task(state, self.room_id.clone(), task_id)?;
-        self.update_state(plugin_id, state);
-        Ok(())
-    }
-
-    pub fn on_cancel_task(&mut self, plugin_id: String, task_id: String) -> Result<()> {
-        let runner = WasmPlugin::new(WASM)?;
-        let state = self.get_state(&plugin_id)?;
-        let state = runner.on_cancel_task(state, self.room_id.clone(), task_id)?;
-        self.update_state(plugin_id, state);
-        Ok(())
-    }
 }

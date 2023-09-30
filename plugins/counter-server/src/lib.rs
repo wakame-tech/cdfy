@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cdfy_sdk_core::Event;
 use cdfy_server_sdk::{fp_export_impl, IResult, PluginMeta};
-use game::{Action, CounterState};
+use game::{CounterState, Message};
 use serde::Serialize;
 
 pub mod game;
@@ -29,7 +29,7 @@ fn into_iresult<T: Serialize>(result: Result<T>) -> IResult {
 
 fn try_on_event(state: String, event: String) -> Result<String> {
     let mut state = serde_json::from_str::<CounterState>(&state)?;
-    let event = serde_json::from_str::<Event<Action>>(&event)?;
+    let event = serde_json::from_str::<Event<Message>>(&event)?;
     state.on_event(event)?;
     let new_state = serde_json::to_string(&state)?;
     Ok(new_state)

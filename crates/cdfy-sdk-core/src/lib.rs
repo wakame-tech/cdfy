@@ -10,12 +10,6 @@ pub enum Event<Message> {
         player_id: String,
         room_id: String,
     },
-    OnCancelTask {
-        task_id: String,
-    },
-    OnTask {
-        task_id: String,
-    },
     Message {
         player_id: String,
         room_id: String,

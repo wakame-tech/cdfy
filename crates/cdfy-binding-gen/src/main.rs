@@ -4,17 +4,14 @@ use fp_bindgen::{
 use once_cell::sync::Lazy;
 use std::collections::{BTreeMap, BTreeSet};
 use types::PluginMeta;
+use types::*;
 
 mod types;
-use types::*;
 
 fp_import! {
     fn rand() -> u32;
 
     fn debug(message: String);
-
-    /// reserve task and execute returns `task_id`
-    fn reserve(player_id: String, room_id: String, action: String, timeout: u32) -> String;
 }
 
 fp_export! {
@@ -29,7 +26,6 @@ static PLUGIN_DEPENDENCIES: Lazy<BTreeMap<&str, CargoDependency>> = Lazy::new(||
     BTreeMap::from([
         ("anyhow", CargoDependency::with_version("1")),
         (
-            //このfp-bindgen-supportはほぼ必須
             "fp-bindgen-support",
             CargoDependency::with_version_and_features("2.0.0", BTreeSet::from(["async", "guest"])),
         ),

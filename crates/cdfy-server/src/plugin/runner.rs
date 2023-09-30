@@ -27,13 +27,6 @@ pub trait PluginEventRunner {
         room_id: String,
         player_id: String,
     ) -> Result<Self::State>;
-    fn on_task(&self, state: Self::State, room_id: String, task_id: String) -> Result<Self::State>;
-    fn on_cancel_task(
-        &self,
-        state: Self::State,
-        room_id: String,
-        task_id: String,
-    ) -> Result<Self::State>;
 }
 
 impl PluginEventRunner for WasmPlugin {
@@ -76,18 +69,5 @@ impl PluginEventRunner for WasmPlugin {
         let event = serde_json::to_string(&event)?;
         let state = self.runtime.on_event(state, event)?;
         to_result(state)
-    }
-
-    fn on_task(&self, state: Self::State, room_id: String, task_id: String) -> Result<Self::State> {
-        todo!()
-    }
-
-    fn on_cancel_task(
-        &self,
-        state: Self::State,
-        room_id: String,
-        task_id: String,
-    ) -> Result<Self::State> {
-        todo!()
     }
 }

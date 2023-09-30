@@ -107,7 +107,6 @@ fn create_import_object(store: &Store, env: &RuntimeInstanceData) -> ImportObjec
             "__fp_host_resolve_async_value" => Function::new_native_with_env(store, env.clone(), resolve_async_value),
             "__fp_gen_debug" => Function::new_native_with_env(store, env.clone(), _debug),
             "__fp_gen_rand" => Function::new_native_with_env(store, env.clone(), _rand),
-            "__fp_gen_reserve" => Function::new_native_with_env(store, env.clone(), _reserve),
         }
     }
 }
@@ -119,18 +118,4 @@ pub fn _debug(env: &RuntimeInstanceData, message: FatPtr) {
 
 pub fn _rand(env: &RuntimeInstanceData) -> <u32 as WasmAbi>::AbiType {
     super::rand().to_abi()
-}
-
-pub fn _reserve(
-    env: &RuntimeInstanceData,
-    player_id: FatPtr,
-    room_id: FatPtr,
-    action: FatPtr,
-    timeout: <u32 as WasmAbi>::AbiType,
-) -> FatPtr {
-    let player_id = import_from_guest::<String>(env, player_id);
-    let room_id = import_from_guest::<String>(env, room_id);
-    let action = import_from_guest::<String>(env, action);
-    let timeout = WasmAbi::from_abi(timeout);
-    export_to_guest(env, &super::reserve(player_id, room_id, action, timeout))
 }

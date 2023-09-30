@@ -1,11 +1,10 @@
 use cdfy_client_sdk::{Api, FetchError, Room};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use yew::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
-    WillIncrement,
     Increment,
 }
 
@@ -20,7 +19,6 @@ enum ClientMessage {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CounterState {
-    tasks: VecDeque<String>,
     player_ids: HashSet<String>,
     count: usize,
 }
@@ -44,16 +42,12 @@ impl Component for CounterComponent {
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div>
-            <button onclick={ctx.props().on_action.reform(|_| Action::Increment)}>
-            { "increment" }
-        </button>
+                <button onclick={ctx.props().on_action.reform(|_| Action::Increment)}>
+                    { "increment" }
+                </button>
 
-        <button onclick={ctx.props().on_action.reform(|_| Action::WillIncrement)}>
-            { "will_increment" }
-        </button>
-
-            <p>{ "count:" } { &ctx.props().state.count }</p>
-        </div>
+                <p>{ "count:" } { &ctx.props().state.count }</p>
+            </div>
         }
     }
 }
