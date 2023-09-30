@@ -1,5 +1,7 @@
-import { useCallback, useState } from 'react'
-import { Room, createRoom, fetchRoom, joinRoom, loadPlugin, sendMessage } from './api'
+import { useCallback, useEffect, useState } from 'react'
+import { Room, createRoom, fetchRoom, joinRoom, pluginLoad, sendPluginMessage } from './api'
+
+const ORIGIN = `ws://localhost:1234`
 
 export const useRoom = <T>(roomId: string, userId: string) => {
   const [room, setRoom] = useState<Room>({
@@ -7,6 +9,21 @@ export const useRoom = <T>(roomId: string, userId: string) => {
     users: [],
     states: {}
   })
+
+  useEffect(() => {
+    const ws = new WebSocket(`${ORIGIN}/rooms/${roomId}/listen/${userId}`);
+    ws.onmessage = e => {
+      const newRoom = JSON.parse(e.data)
+      console.log(newRoom)
+      setRoom(newRoom)
+    }
+    ws.onclose = e => {
+      console.log(e)
+    }
+    return () => {
+      ws.close()
+    }
+  }, [])
 
   const create = useCallback(async () => {
     const room = await createRoom(roomId)
@@ -24,12 +41,12 @@ export const useRoom = <T>(roomId: string, userId: string) => {
   }, [])
 
   const load = useCallback(async () => {
-    const room = await loadPlugin(roomId);
+    const room = await pluginLoad(roomId, userId);
     setRoom(room)
   }, [])
 
   const message = useCallback(async (message: T) => {
-    const room = await sendMessage(roomId, userId, message)
+    const room = await sendPluginMessage(roomId, userId, message)
     setRoom(room)
   }, [])
 

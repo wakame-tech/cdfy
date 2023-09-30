@@ -1,9 +1,11 @@
 // import { CarrerPoker } from './plugins/CareerPoker'
+import { useEffect } from 'react'
 import { Counter } from './plugins/Counter'
 import { useRoom } from './useRoom'
 
 function App() {
-  const { room, fetch, create, join, load, message } = useRoom("a", "u")
+  const userId = new URLSearchParams(window.location.search).get("user") ?? "user";
+  const { room, fetch, create, join, load, message } = useRoom("a", userId)
 
   return (
     <>

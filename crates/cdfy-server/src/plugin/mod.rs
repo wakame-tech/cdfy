@@ -11,7 +11,7 @@ pub struct WasmPlugin {
 impl Default for WasmPlugin {
     fn default() -> Self {
         let mut wasm = vec![];
-        File::open("../../../../.cache/counter_server.wasm")
+        File::open("../../.cache/counter_server.wasm")
             .unwrap()
             .read_to_end(&mut wasm)
             .unwrap();
