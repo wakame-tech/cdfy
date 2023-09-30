@@ -1,86 +1,69 @@
-use crate::room::Room;
-use anyhow::Result;
-use axum::{extract::Path, http::StatusCode, Json};
-use redis::{Commands, RedisError};
-
-static REDIS_ADDR: &str = "redis://127.0.0.1";
+use crate::room::{redis::RedisRoomStore, Room, RoomStore};
+use anyhow::{Error, Result};
+use axum::{
+    extract::Path,
+    http::StatusCode,
+    routing::{delete, get, post},
+    Json, Router,
+};
 
 type ApiRespnse<T> = Result<Json<T>, (StatusCode, String)>;
 
-fn into_resp(e: RedisError) -> (StatusCode, String) {
+fn into_resp(e: Error) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
 }
 
 pub async fn create_room(Path(room_id): Path<String>) -> ApiRespnse<Room> {
-    tracing::debug!("crate_room {}", room_id);
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
+    tracing::debug!("room {}/create", room_id);
+    let store = RedisRoomStore::default();
 
-    let key = format!("rooms:{}", room_id);
     let room = Room::new(room_id);
-    let room_json = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room_json).map_err(into_resp)?;
+
+    store.set(&room).map_err(into_resp)?;
     Ok(Json(room))
 }
 
 pub async fn get_room(Path(room_id): Path<String>) -> ApiRespnse<Room> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
+    let store = RedisRoomStore::default();
 
-    let key = format!("rooms:{}", room_id);
-    let room: String = con.get(&key).map_err(into_resp)?;
-    let room: Room = serde_json::from_str(&room).unwrap();
+    let room = store.get(room_id).map_err(into_resp)?;
     Ok(Json(room))
 }
 
 pub async fn list_rooms() -> ApiRespnse<Vec<String>> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
+    let store = RedisRoomStore::default();
 
-    let room_keys = con
-        .scan_match("rooms:*")
-        .map_err(into_resp)?
-        .into_iter()
-        .collect::<Vec<String>>();
-
+    let room_keys = store.list_ids().map_err(into_resp)?;
     Ok(Json(room_keys))
 }
 
 pub async fn join_room(Path((room_id, user_id)): Path<(String, String)>) -> ApiRespnse<Room> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
-    let key = format!("rooms:{}", room_id);
-    let room: String = con.get(&key).map_err(into_resp)?;
-    let mut room: Room = serde_json::from_str(&room).unwrap();
-    room.join(user_id)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    let room_json = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room_json).map_err(into_resp)?;
+    tracing::debug!("room {}/join {}", room_id, user_id);
+    let store = RedisRoomStore::default();
+
+    let mut room = store.get(room_id).map_err(into_resp)?;
+    room.join(user_id).map_err(into_resp)?;
+
+    store.set(&room).map_err(into_resp)?;
     Ok(Json(room))
 }
 
 pub async fn delete_room(Path(room_id): Path<String>) -> ApiRespnse<()> {
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
-    let key = format!("rooms:{}", room_id);
-    let _: () = con.del(&key).map_err(into_resp)?;
+    tracing::debug!("room {} delete", room_id);
+    let store = RedisRoomStore::default();
+
+    store.delete(room_id).map_err(into_resp)?;
     Ok(Json(()))
 }
 
 pub async fn load_plugin(Path((room_id, plugin_id)): Path<(String, String)>) -> ApiRespnse<Room> {
-    tracing::info!("room {} load {}", room_id, plugin_id);
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
+    tracing::debug!("room {}/plugin {} load", room_id, plugin_id);
+    let store = RedisRoomStore::default();
 
-    let key = format!("rooms:{}", room_id);
-    let room: String = con.get(&key).map_err(into_resp)?;
-    let mut room: Room = serde_json::from_str(&room)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    room.load_plugin(plugin_id)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let mut room = store.get(room_id).map_err(into_resp)?;
+    room.load_plugin(plugin_id).map_err(into_resp)?;
 
-    let room_json = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room_json).map_err(into_resp)?;
+    store.set(&room).map_err(into_resp)?;
     Ok(Json(room))
 }
 
@@ -88,18 +71,22 @@ pub async fn message_plugin(
     Path((room_id, plugin_id)): Path<(String, String)>,
     message: String,
 ) -> ApiRespnse<Room> {
-    tracing::info!("room {} message", room_id);
-    let client = redis::Client::open(REDIS_ADDR).map_err(into_resp)?;
-    let mut con = client.get_connection().map_err(into_resp)?;
+    tracing::debug!("room {}/plugin {} message", room_id, plugin_id);
+    let store = RedisRoomStore::default();
 
-    let key = format!("rooms:{}", room_id);
-    let room: String = con.get(&key).map_err(into_resp)?;
-    let mut room: Room = serde_json::from_str(&room)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    room.message(plugin_id, message)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let mut room = store.get(room_id).map_err(into_resp)?;
+    room.message(plugin_id, message).map_err(into_resp)?;
 
-    let room_str = serde_json::to_string(&room).unwrap();
-    let _: () = con.set(&key, room_str).map_err(into_resp)?;
+    store.set(&room).map_err(into_resp)?;
     Ok(Json(room))
+}
+
+pub fn router() -> Router {
+    Router::new()
+        .route("/rooms", get(list_rooms))
+        .route("/rooms/:room_id", get(get_room).post(create_room))
+        .route("/rooms/:room_id", delete(delete_room))
+        .route("/rooms/:room_id/join/:user_id", post(join_room))
+        .route("/rooms/:room_id/:plugin_id", post(load_plugin))
+        .route("/rooms/:room_id/:plugin_id/message", post(message_plugin))
 }
