@@ -5,7 +5,14 @@ POST {{api}}/rooms/a
 
 ###
 # load plugin
-POST {{api}}/rooms/a/plugins/counter
+POST {{api}}/rooms/a/plugins
+Content-Type: application/json
+
+{
+  "user_id": "u",
+  "plugin_id": "counter"
+}
+
 
 ###
 # join

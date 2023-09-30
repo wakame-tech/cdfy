@@ -33,12 +33,21 @@ export const createRoom = async (roomId: string): Promise<Room> => {
     return map_promise(res);
 }
 
-export const loadPlugin = async (roomId: string): Promise<Room> => {
-    const res = await fetch(`${API_ORIGIN}/rooms/${roomId}/plugins/counter`, { method: 'POST' });
+export const pluginLoad = async (roomId: string, userId: string): Promise<Room> => {
+    const res = await fetch(`${API_ORIGIN}/rooms/${roomId}/plugins`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            user_id: userId,
+            plugin_id: 'counter'
+        })
+    });
     return map_promise(res);
 }
 
-export const sendMessage = async <T>(roomId: string, userId: string, message: T): Promise<Room> => {
+export const sendPluginMessage = async <T>(roomId: string, userId: string, message: T): Promise<Room> => {
     const res = await fetch(`${API_ORIGIN}/rooms/${roomId}/plugins/counter/message`, {
         method: 'POST',
         headers: {

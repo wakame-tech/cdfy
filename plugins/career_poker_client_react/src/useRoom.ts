@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Room, createRoom, fetchRoom, joinRoom, loadPlugin, sendMessage } from './api'
+import { Room, createRoom, fetchRoom, joinRoom, pluginLoad, sendPluginMessage } from './api'
 
 const ORIGIN = `ws://localhost:1234`
 
@@ -41,12 +41,12 @@ export const useRoom = <T>(roomId: string, userId: string) => {
   }, [])
 
   const load = useCallback(async () => {
-    const room = await loadPlugin(roomId);
+    const room = await pluginLoad(roomId, userId);
     setRoom(room)
   }, [])
 
   const message = useCallback(async (message: T) => {
-    const room = await sendMessage(roomId, userId, message)
+    const room = await sendPluginMessage(roomId, userId, message)
     setRoom(room)
   }, [])
 

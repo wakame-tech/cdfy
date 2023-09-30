@@ -58,12 +58,22 @@ async fn list_rooms() -> ApiRespnse<Vec<String>> {
     Ok(Json(room_keys))
 }
 
-async fn join_room(Path((room_id, user_id)): Path<(String, String)>) -> ApiRespnse<Room> {
+async fn join_room(
+    Path((room_id, user_id)): Path<(String, String)>,
+    Extension(notifier): Extension<Arc<Notifier>>,
+) -> ApiRespnse<Room> {
     tracing::debug!("room {}/join {}", room_id, user_id);
     let store = RedisRoomStore::default();
 
-    let mut room = store.get(room_id).map_err(into_resp)?;
-    room.join(user_id).map_err(into_resp)?;
+    let mut room = store.get(room_id.clone()).map_err(into_resp)?;
+    room.join(user_id.clone()).map_err(into_resp)?;
+    if let Err(e) = notifier.tx.send(Notification::new(
+        room_id.clone(),
+        user_id.clone(),
+        room.clone(),
+    )) {
+        tracing::error!("{}", e);
+    }
 
     store.set(&room).map_err(into_resp)?;
     Ok(Json(room))
@@ -77,12 +87,30 @@ async fn delete_room(Path(room_id): Path<String>) -> ApiRespnse<()> {
     Ok(Json(()))
 }
 
-async fn load_plugin(Path((room_id, plugin_id)): Path<(String, String)>) -> ApiRespnse<Room> {
-    tracing::debug!("room {}/plugin {} load", room_id, plugin_id);
+#[derive(Debug, Deserialize)]
+struct LoadPluginBody {
+    user_id: String,
+    plugin_id: String,
+}
+
+async fn load_plugin(
+    Path(room_id): Path<String>,
+    Extension(notifier): Extension<Arc<Notifier>>,
+    body: Json<LoadPluginBody>,
+) -> ApiRespnse<Room> {
+    tracing::debug!("room {}/plugin load {:?}", room_id, body);
     let store = RedisRoomStore::default();
 
-    let mut room = store.get(room_id).map_err(into_resp)?;
-    room.load_plugin(plugin_id).map_err(into_resp)?;
+    let mut room = store.get(room_id.clone()).map_err(into_resp)?;
+    room.load_plugin(body.plugin_id.clone())
+        .map_err(into_resp)?;
+    if let Err(e) = notifier.tx.send(Notification::new(
+        room_id.clone(),
+        body.user_id.clone(),
+        room.clone(),
+    )) {
+        tracing::error!("{}", e);
+    }
 
     store.set(&room).map_err(into_resp)?;
     Ok(Json(room))
@@ -94,7 +122,7 @@ pub struct MessageBody {
     message: String,
 }
 
-async fn message_plugin(
+async fn plugin_message(
     Path((room_id, plugin_id)): Path<(String, String)>,
     Extension(notifier): Extension<Arc<Notifier>>,
     body: Json<MessageBody>,
@@ -147,10 +175,10 @@ pub fn router() -> Router {
         )
         .route("/rooms/:room_id", delete(delete_room))
         .route("/rooms/:room_id/join/:user_id", post(join_room))
-        .route("/rooms/:room_id/plugins/:plugin_id", post(load_plugin))
+        .route("/rooms/:room_id/plugins", post(load_plugin))
         .route(
             "/rooms/:room_id/plugins/:plugin_id/message",
-            post(message_plugin),
+            post(plugin_message),
         )
         .layer(AddExtensionLayer::new(Arc::new(Notifier { tx })))
 }
