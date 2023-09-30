@@ -127,7 +127,7 @@ impl Api {
     }
 
     pub async fn load_plugin(&self, room_id: &str) -> Result<Room, FetchError> {
-        let url = format!("{}/rooms/{}/counter", self.origin, room_id);
+        let url = format!("{}/rooms/{}/plugins/counter", self.origin, room_id);
         Self::post_json(url).await
     }
 
@@ -140,9 +140,9 @@ impl Api {
         let event = Event::Message {
             player_id: player_id.to_string(),
             room_id: room_id.to_string(),
-            message,
+            message: serde_json::to_string(&message).unwrap(),
         };
-        let url = format!("{}/rooms/{}/counter/message", self.origin, room_id);
+        let url = format!("{}/rooms/{}/plugins/counter/message", self.origin, room_id);
         Self::post_json_with_body(url, Some(event)).await
     }
 }

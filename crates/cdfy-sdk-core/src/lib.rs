@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Event<Message> {
+pub enum Event {
     OnJoinPlayer {
         player_id: String,
         room_id: String,
@@ -13,6 +13,6 @@ pub enum Event<Message> {
     Message {
         player_id: String,
         room_id: String,
-        message: Message,
+        message: String,
     },
 }

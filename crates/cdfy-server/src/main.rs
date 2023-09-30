@@ -1,5 +1,5 @@
 use std::{net::SocketAddr, str::FromStr};
-use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::EnvFilter;
 
 mod plugin;
@@ -13,7 +13,7 @@ async fn main() {
         .init();
     tracing::info!("server started");
 
-    let app = room_api::router().layer(CorsLayer::new().allow_origin(AllowOrigin::any()));
+    let app = room_api::router().layer(CorsLayer::new().allow_headers(Any).allow_origin(Any));
 
     axum::Server::bind(&SocketAddr::from(([127, 0, 0, 1], 1234)))
         .serve(app.into_make_service())

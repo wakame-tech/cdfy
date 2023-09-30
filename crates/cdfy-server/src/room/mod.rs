@@ -19,7 +19,7 @@ pub struct Room {
     states: HashMap<String, String>,
 }
 
-const WASM: &[u8] = include_bytes!("../../../../.cache/counter.wasm");
+const WASM: &[u8] = include_bytes!("../../../../.cache/counter_server.wasm");
 
 impl Room {
     pub fn new(room_id: String) -> Self {
@@ -66,10 +66,11 @@ impl Room {
         Ok(())
     }
 
-    pub fn message(&mut self, plugin_id: String, message: String) -> Result<()> {
+    pub fn message(&mut self, user_id: String, plugin_id: String, message: String) -> Result<()> {
         let plugin = WasmPlugin::new(WASM)?;
         let state = self.get_state(&plugin_id)?;
-        let state = plugin.message(state, self.room_id.clone(), message)?;
+        let state = plugin.message(state, self.room_id.clone(), user_id.clone(), message)?;
+        tracing::debug!("state={}", state);
         self.update_state(plugin_id, state);
         Ok(())
     }

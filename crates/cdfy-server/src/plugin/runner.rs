@@ -14,7 +14,13 @@ pub trait PluginEventRunner {
     type State;
 
     fn load(&self) -> Result<Self::State>;
-    fn message(&self, state: Self::State, room_id: String, message: String) -> Result<Self::State>;
+    fn message(
+        &self,
+        state: Self::State,
+        room_id: String,
+        player_id: String,
+        message: String,
+    ) -> Result<Self::State>;
     fn on_join(
         &self,
         state: Self::State,
@@ -40,10 +46,18 @@ impl PluginEventRunner for WasmPlugin {
     fn message(
         &self,
         state: Self::State,
-        _room_id: String,
+        room_id: String,
+        player_id: String,
         message: String,
     ) -> Result<Self::State> {
-        let state = self.runtime.on_event(state, message)?;
+        let event = Event::Message {
+            player_id,
+            room_id,
+            // re-deserialize in plugin, so need quoting
+            message: format!("\"{}\"", message),
+        };
+        let event = serde_json::to_string(&event)?;
+        let state = self.runtime.on_event(state, event)?;
         to_result(state)
     }
 
@@ -53,7 +67,7 @@ impl PluginEventRunner for WasmPlugin {
         room_id: String,
         player_id: String,
     ) -> Result<Self::State> {
-        let event = Event::<()>::OnJoinPlayer { player_id, room_id };
+        let event = Event::OnJoinPlayer { player_id, room_id };
         let event = serde_json::to_string(&event)?;
         let state = self.runtime.on_event(state, event)?;
         to_result(state)
@@ -65,7 +79,7 @@ impl PluginEventRunner for WasmPlugin {
         room_id: String,
         player_id: String,
     ) -> Result<Self::State> {
-        let event = Event::<()>::OnLeavePlayer { player_id, room_id };
+        let event = Event::OnLeavePlayer { player_id, room_id };
         let event = serde_json::to_string(&event)?;
         let state = self.runtime.on_event(state, event)?;
         to_result(state)
