@@ -3,6 +3,7 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+pub mod broascast;
 pub mod redis;
 
 pub trait RoomStore {
@@ -12,7 +13,7 @@ pub trait RoomStore {
     fn delete(&self, room_id: String) -> Result<()>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Room {
     pub room_id: String,
     users: HashSet<String>,

@@ -1,12 +1,20 @@
-use crate::room::{redis::RedisRoomStore, Room, RoomStore};
+use crate::room::{
+    broascast::{broadcast, Notification, Notifier},
+    redis::RedisRoomStore,
+    Room, RoomStore,
+};
 use anyhow::{Error, Result};
 use axum::{
-    extract::Path,
+    extract::{Path, WebSocketUpgrade},
     http::StatusCode,
+    response::IntoResponse,
     routing::{delete, get, post},
-    Json, Router,
+    Extension, Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::broadcast;
+use tower_http::add_extension::AddExtensionLayer;
 
 type ApiRespnse<T> = Result<Json<T>, (StatusCode, Json<InternalError>)>;
 
@@ -88,6 +96,7 @@ pub struct MessageBody {
 
 async fn message_plugin(
     Path((room_id, plugin_id)): Path<(String, String)>,
+    Extension(notifier): Extension<Arc<Notifier>>,
     body: Json<MessageBody>,
 ) -> ApiRespnse<Room> {
     tracing::debug!(
@@ -99,17 +108,43 @@ async fn message_plugin(
     );
     let store = RedisRoomStore::default();
 
-    let mut room = store.get(room_id).map_err(into_resp)?;
+    let mut room = store.get(room_id.clone()).map_err(into_resp)?;
     room.message(body.user_id.clone(), plugin_id, body.message.clone())
         .map_err(into_resp)?;
+
+    if let Err(e) = notifier.tx.send(Notification::new(
+        room_id.clone(),
+        body.user_id.clone(),
+        room.clone(),
+    )) {
+        tracing::error!("{}", e);
+    }
+
     store.set(&room).map_err(into_resp)?;
     Ok(Json(room))
 }
 
+async fn event_listener_handler(
+    Path((room_id, user_id)): Path<(String, String)>,
+    ws: WebSocketUpgrade,
+    Extension(notifier): Extension<Arc<Notifier>>,
+) -> impl IntoResponse {
+    let mut rx = notifier.tx.subscribe();
+    ws.on_upgrade(|socket| async move {
+        broadcast(socket, &mut rx, room_id, user_id).await;
+    })
+}
+
 pub fn router() -> Router {
+    let (tx, _) = broadcast::channel(100);
+
     Router::new()
         .route("/rooms", get(list_rooms))
         .route("/rooms/:room_id", get(get_room).post(create_room))
+        .route(
+            "/rooms/:room_id/listen/:user_id",
+            get(event_listener_handler),
+        )
         .route("/rooms/:room_id", delete(delete_room))
         .route("/rooms/:room_id/join/:user_id", post(join_room))
         .route("/rooms/:room_id/plugins/:plugin_id", post(load_plugin))
@@ -117,4 +152,5 @@ pub fn router() -> Router {
             "/rooms/:room_id/plugins/:plugin_id/message",
             post(message_plugin),
         )
+        .layer(AddExtensionLayer::new(Arc::new(Notifier { tx })))
 }
