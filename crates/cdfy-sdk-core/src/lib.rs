@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-pub mod builtin;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Event<Message> {
     OnJoinPlayer {

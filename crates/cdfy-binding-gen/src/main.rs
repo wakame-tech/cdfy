@@ -38,27 +38,18 @@ static PLUGIN_DEPENDENCIES: Lazy<BTreeMap<&str, CargoDependency>> = Lazy::new(||
 
 fn main() {
     for (bindings_type, path) in [
-        // deno runtime
-        // (
-        //     BindingsType::TsRuntimeWithExtendedConfig(
-        //         TsExtendedRuntimeConfig::new()
-        //             .with_msgpack_module("https://unpkg.com/@msgpack/msgpack@2.7.2/mod.ts")
-        //             .with_raw_export_wrappers(),
-        //     ),
-        //     "../../server/gen",
-        // ),
         // wasmer runtime
         (BindingsType::RustWasmer2Runtime, "../cdfy-runtime/src/spec"),
         // rust plugin
         (
             BindingsType::RustPlugin(
                 RustPluginConfig::builder()
-                    .name("cdfy-sdk")
+                    .name("cdfy-server-sdk")
                     .version("0.1.0")
                     .dependencies(PLUGIN_DEPENDENCIES.clone())
                     .build(),
             ),
-            "../cdfy-sdk",
+            "../cdfy-server-sdk",
         ),
     ] {
         let config = BindingConfig {
