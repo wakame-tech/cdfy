@@ -1,38 +1,37 @@
 import { useEffect, useState } from 'react'
-import { usePlugin } from '../state'
 import { Suit, Card } from '../component/CardView'
 import { Button } from '../component/Button'
 import { DebugView } from '../component/Debug'
 import { DeckView, Deck, defaultDeck, useSelects } from '../component/DeckView'
 import { Players } from '../component/Players'
 
-type Rpc =
+type Message =
   | 'Distribute'
   | {
-      Pass: { player_id: string }
-    }
+    Pass: { player_id: string }
+  }
   | {
-      OneChance: { player_id: string; serves: Card[] }
-    }
+    OneChance: { player_id: string; serves: Card[] }
+  }
   | {
-      Select: {
-        from: string
-        player_id: string
-        serves: Card[]
-      }
+    Select: {
+      from: string
+      player_id: string
+      serves: Card[]
     }
+  }
   | {
-      ServeAnother: {
-        player_id: string
-        serves: Card[]
-      }
+    ServeAnother: {
+      player_id: string
+      serves: Card[]
     }
+  }
   | {
-      Serve: {
-        player_id: string
-        serves: Card[]
-      }
+    Serve: {
+      player_id: string
+      serves: Card[]
     }
+  }
 
 interface Effect {
   river_size: number | null
@@ -57,10 +56,14 @@ export interface State {
   prompts: Record<string, string>
 }
 
-export const CarrerPoker = (props: { roomId: string }) => {
-  const [isDebug, setDebug] = useState(false)
-  const { id, state, rpc } = usePlugin<State, Rpc>(props.roomId)
+export interface CareerPokerProps {
+  id: string,
+  state: State,
+  onMessage: (message: Message) => Promise<void>,
+}
 
+export const CarrerPoker = ({ state, id, onMessage }: CareerPokerProps) => {
+  const [isDebug, setDebug] = useState(false)
   const hands = state?.fields[id] ?? defaultDeck()
   const river = state?.river[state?.river.length - 1] ?? defaultDeck()
 
@@ -157,8 +160,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
 
       {state.effect.effect_limits.length > 0 && (
         <p>
-          効果制限: [
-          {[...state.effect.effect_limits.sort((a, b) => a - b)].join(',')}]
+          効果制限: [{[...state.effect.effect_limits.sort((a, b) => a - b)].join(',')}]
         </p>
       )}
       {state.effect.suit_limits.length > 0 && (
@@ -175,7 +177,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
           state={state}
           label='開始'
           disabled={(state) => id !== state.players[0]}
-          onClick={() => rpc('Distribute')}
+          onClick={() => onMessage('Distribute')}
         />
         <Button
           state={state}
@@ -187,7 +189,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
             !!state.will_flush_task_id
           }
           onClick={() =>
-            rpc({
+            onMessage({
               Pass: {
                 player_id: id,
               },
@@ -205,7 +207,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
           }
           onClick={() => {
             const serves = selectedHands.map((i) => hands.cards[i])
-            rpc({
+            onMessage({
               Serve: {
                 player_id: id,
                 serves,
@@ -223,7 +225,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
             const serves = selectedExcludes.map(
               (i) => state.fields['excluded'].cards[i]
             )
-            rpc({
+            onMessage({
               Select: {
                 from: 'excluded',
                 player_id: id,
@@ -242,7 +244,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
             const serves = selectedTrushes.map(
               (i) => state.fields['trushes'].cards[i]
             )
-            rpc({
+            onMessage({
               Select: {
                 from: 'trushes',
                 player_id: id,
@@ -259,7 +261,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
           disabled={(state) => state.prompts[id] !== id}
           onClick={() => {
             const serves = selectedHands.map((i) => hands.cards[i])
-            rpc({
+            onMessage({
               ServeAnother: {
                 player_id: id,
                 serves,
@@ -289,7 +291,7 @@ export const CarrerPoker = (props: { roomId: string }) => {
             if (!card) {
               return
             }
-            rpc({
+            onMessage({
               OneChance: {
                 player_id: id,
                 serves: [card],

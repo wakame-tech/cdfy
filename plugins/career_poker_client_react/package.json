@@ -16,7 +16,6 @@
     "react-dom": "^18.2.0",
     "react-free-playing-cards": "^0.4.2",
     "react-json-view": "^1.21.3",
-    "socket.io-client": "^4.6.0",
     "vite-plugin-favicon": "^1.0.8"
   },
   "devDependencies": {
