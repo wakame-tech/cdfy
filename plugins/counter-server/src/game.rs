@@ -1,16 +1,11 @@
 use anyhow::Result;
-use cdfy_sdk_support::{builtin::reserve, Event};
+use cdfy_sdk_core::Event;
+use cdfy_server_sdk::reserve;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashSet, VecDeque},
     fmt::Debug,
 };
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Message {
-    WillIncrement,
-    Increment,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CounterState {
@@ -19,51 +14,55 @@ pub struct CounterState {
     count: usize,
 }
 
-impl CounterState {
-    pub fn new() -> Self {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Action {
+    Increment,
+    WillIncrement,
+}
+
+impl Default for CounterState {
+    fn default() -> Self {
         Self {
             tasks: VecDeque::new(),
             player_ids: HashSet::new(),
             count: 0,
         }
     }
+}
 
-    pub fn on_event(&mut self, event: Event<Message>) -> Result<()> {
+impl CounterState {
+    pub fn on_event(&mut self, event: Event<Action>) -> Result<()> {
         match event {
-            Event::OnJoinPlayer { player_id, room_id } => {
+            Event::OnJoinPlayer { player_id, .. } => {
                 self.player_ids.insert(player_id);
-                Ok(())
             }
-            Event::OnLeavePlayer { player_id, room_id } => {
+            Event::OnLeavePlayer { player_id, .. } => {
                 self.player_ids.remove(&player_id);
-                Ok(())
             }
             Event::OnTask { task_id } | Event::OnCancelTask { task_id } => {
                 if let Some(i) = self.tasks.iter().position(|id| id == &task_id) {
                     self.tasks.remove(i);
                 }
-                Ok(())
             }
             Event::Message {
                 player_id,
                 room_id,
-                message,
-            } => match message {
-                Message::Increment => {
-                    self.count += self.player_ids.len();
-                    Ok(())
+                message: action,
+            } => match action {
+                Action::Increment => {
+                    self.count += 1 + self.player_ids.len();
                 }
-                Message::WillIncrement => {
+                Action::WillIncrement => {
                     let task_id = reserve(
                         player_id,
                         room_id,
-                        serde_json::to_string(&Message::Increment).unwrap(),
+                        serde_json::to_string(&Action::Increment).unwrap(),
                         3000,
                     );
                     self.tasks.push_back(task_id);
-                    Ok(())
                 }
             },
         }
+        Ok(())
     }
 }

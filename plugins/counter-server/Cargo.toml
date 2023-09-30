@@ -1,5 +1,5 @@
 [package]
-name = "counter"
+name = "counter-server"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,10 +12,7 @@ lto = true
 
 [dependencies]
 anyhow = "1"
-cdfy-sdk = { path = "../../crates/cdfy-sdk" }
-cdfy-sdk-support = { path = "../../crates/cdfy-sdk-support" }
+cdfy-sdk-core = { path = "../../crates/cdfy-sdk-core" }
+cdfy-server-sdk = { path = "../../crates/cdfy-server-sdk" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.93"
-
-[dev-dependencies]
-inquire = "0.5.3"
