@@ -35,3 +35,4 @@ cdfy_room_server-*.tar
 npm-debug.log
 /assets/node_modules/
 
+plugins/

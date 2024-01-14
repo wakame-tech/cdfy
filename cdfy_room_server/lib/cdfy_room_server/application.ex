@@ -9,7 +9,7 @@ defmodule CdfyRoomServer.Application do
   def start(_type, _args) do
     children = [
       CdfyRoomServerWeb.Telemetry,
-      CdfyRoomServer.Repo,
+      # CdfyRoomServer.Repo,
       {DNSCluster, query: Application.get_env(:cdfy_room_server, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: CdfyRoomServer.PubSub},
       # Start the Finch HTTP client for sending emails
