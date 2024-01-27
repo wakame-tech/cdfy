@@ -13,16 +13,15 @@ defmodule CdfyRoomServer.Application do
       {DNSCluster, query: Application.get_env(:cdfy_room_server, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: CdfyRoomServer.PubSub},
       # Start the Finch HTTP client for sending emails
-      {Finch, name: CdfyRoomServer.Finch},
-      # Start a worker by calling: CdfyRoomServer.Worker.start_link(arg)
-      # {CdfyRoomServer.Worker, arg},
-      # Start to serve requests, typically the last entry
+      # {Finch, name: CdfyRoomServer.Finch},
+      {DynamicSupervisor, [name: CdfyRoomServer.RoomSupervisor, strategy: :one_for_one]},
+      {Registry, keys: :unique, name: CdfyRoomServer.RoomRegistry},
       CdfyRoomServerWeb.Endpoint
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: CdfyRoomServer.Supervisor]
+    opts = [strategy: :one_for_all, name: CdfyRoomServer.Supervisor]
     Supervisor.start_link(children, opts)
   end
 

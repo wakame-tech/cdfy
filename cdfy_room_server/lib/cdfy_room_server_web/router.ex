@@ -18,7 +18,7 @@ defmodule CdfyRoomServerWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-    live "/game", GameLive
+    live "/room/:room_id", RoomLive
   end
 
   # Other scopes may use custom stacks.
