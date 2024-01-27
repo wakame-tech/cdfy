@@ -8,4 +8,4 @@ members = [
     "./crates/cdfy-runtime",
     "./crates/cdfy-server",
 ]
-exclude = ["./plugins"]
+exclude = ["./plugins", "./plugins/template"]
