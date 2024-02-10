@@ -9,7 +9,7 @@ import Config
 
 config :cdfy_room_server,
   ecto_repos: [CdfyRoomServer.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime, binary_id: true]
 
 # Configures the endpoint
 config :cdfy_room_server, CdfyRoomServerWeb.Endpoint,

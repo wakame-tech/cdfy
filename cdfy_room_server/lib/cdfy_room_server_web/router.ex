@@ -2,23 +2,28 @@ defmodule CdfyRoomServerWeb.Router do
   use CdfyRoomServerWeb, :router
 
   pipeline :browser do
-    plug :accepts, ["html"]
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {CdfyRoomServerWeb.Layouts, :root}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:fetch_live_flash)
+    plug(:put_root_layout, html: {CdfyRoomServerWeb.Layouts, :root})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
   end
 
   pipeline :api do
-    plug :accepts, ["json"]
+    plug(:accepts, ["json"])
   end
 
   scope "/", CdfyRoomServerWeb do
-    pipe_through :browser
+    pipe_through(:browser)
 
-    get "/", PageController, :home
-    live "/room/:room_id", RoomLive
+    get("/", PageController, :home)
+    live("/room/:room_id", RoomLive)
+  end
+
+  scope "/api", CdfyRoomServerWeb do
+    pipe_through(:api)
+    resources("/plugins", PluginController, except: [:new, :edit])
   end
 
   # Other scopes may use custom stacks.
@@ -36,10 +41,10 @@ defmodule CdfyRoomServerWeb.Router do
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do
-      pipe_through :browser
+      pipe_through(:browser)
 
-      live_dashboard "/dashboard", metrics: CdfyRoomServerWeb.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
+      live_dashboard("/dashboard", metrics: CdfyRoomServerWeb.Telemetry)
+      forward("/mailbox", Plug.Swoosh.MailboxPreview)
     end
   end
 end
