@@ -5,8 +5,7 @@ defmodule CdfyRoomServer.Plugins do
 
   import Ecto.Query, warn: false
   alias CdfyRoomServer.Repo
-
-  alias CdfyRoomServer.Plugins.Plugin
+  alias CdfyRoomServer.Plugin
 
   @doc """
   Returns the list of plugins.

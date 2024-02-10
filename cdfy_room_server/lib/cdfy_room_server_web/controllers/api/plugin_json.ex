@@ -1,5 +1,5 @@
-defmodule CdfyRoomServerWeb.PluginJSON do
-  alias CdfyRoomServer.Plugins.Plugin
+defmodule CdfyRoomServerWeb.Api.PluginJSON do
+  alias CdfyRoomServer.Plugin
 
   @doc """
   Renders a list of plugins.

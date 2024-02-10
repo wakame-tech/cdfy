@@ -17,19 +17,16 @@ defmodule CdfyRoomServerWeb.Router do
   scope "/", CdfyRoomServerWeb do
     pipe_through(:browser)
 
-    get("/", PageController, :home)
-    live("/room/:room_id", RoomLive)
+    live("/", HomeLive)
+    get("/plugins", PluginController, :index)
+    get("/plugins/:id", PluginController, :show)
+    live("/rooms/:room_id", RoomLive)
   end
 
   scope "/api", CdfyRoomServerWeb do
     pipe_through(:api)
-    resources("/plugins", PluginController, except: [:new, :edit])
+    resources("/plugins", Api.PluginController, except: [:new, :edit])
   end
-
-  # Other scopes may use custom stacks.
-  # scope "/api", CdfyRoomServerWeb do
-  #   pipe_through :api
-  # end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:cdfy_room_server, :dev_routes) do
