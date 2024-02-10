@@ -12,6 +12,14 @@ services:
     entrypoint: sh
     volumes:
       - ./data/minio:/data
-
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cdfy_room_server_dev
+    ports:
+      - 5434:5432
 volumes:
   minio:

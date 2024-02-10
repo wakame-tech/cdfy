@@ -6,6 +6,7 @@ config :cdfy_room_server, CdfyRoomServer.Repo,
   password: "postgres",
   hostname: "localhost",
   database: "cdfy_room_server_dev",
+  port: 5434,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
