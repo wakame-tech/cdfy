@@ -7,7 +7,6 @@ defmodule CdfyRoomServerWeb.RoomLive do
 
   @impl true
   def mount(%{"room_id" => room_id}, _session, socket) do
-    Room.start(room_id)
     player_id = socket.id
 
     if connected?(socket) do
@@ -21,15 +20,21 @@ defmodule CdfyRoomServerWeb.RoomLive do
       |> assign(:player_id, player_id)
       |> assign(:error, %{})
       |> assign(:version, 0)
+      |> assign(:debug, false)
 
     {:ok, socket}
   end
 
   @impl true
   def handle_event("load_game", _params, %{assigns: %{room_id: room_id}} = socket) do
-    :ok = Room.load_game(room_id)
+    {:ok, _} = Room.load_game(room_id)
     Room.broadcast_game_state(room_id, socket.assigns.version + 1)
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_debug", _params, socket) do
+    {:noreply, assign(socket, debug: not socket.assigns.debug)}
   end
 
   @impl true
@@ -65,21 +70,31 @@ defmodule CdfyRoomServerWeb.RoomLive do
   end
 
   @impl true
-  def render(%{room_id: room_id, player_id: player_id, error: e} = assigns) do
-    plugin_state = Room.get_plugin_state(room_id)
+  def render(%{room_id: room_id, player_id: player_id, error: e, debug: debug} = assigns) do
+    {:ok, state} =
+      case debug do
+        true -> Room.get_plugin_state(room_id)
+        false -> {:ok, nil}
+      end
+
     v = Room.render(room_id)
     error = Map.get(e, player_id)
     html = Phoenix.HTML.raw(v)
 
     ~H"""
+    <button class="p-2 bg-red-500 text-white" phx-click="load_game">load</button>
     <p>player_id: <%= player_id %></p>
     <%= if error != nil do %>
       <p class="text-red-500">error: <%= error %></p>
     <% end %>
-    <button class="p-2 bg-red-500 text-white" phx-click="load_game">load</button>
+
     <%= html %>
 
-    <p>Plugin State: <%= inspect(plugin_state) %></p>
+    <input id="debug" type="checkbox" phx-click="toggle_debug" checked={debug} />
+    <label for="debug">debug</label>
+    <%= if debug do %>
+      <p><%= inspect(state) %></p>
+    <% end %>
     """
   end
 end

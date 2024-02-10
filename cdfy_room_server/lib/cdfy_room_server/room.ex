@@ -2,40 +2,40 @@ defmodule CdfyRoomServer.Room do
   use GenServer
   require Logger
   alias Phoenix.PubSub
+  alias CdfyRoomServer.PluginRunner
 
-  # @wasm_path "plugins/template.wasm"
-  @wasm_path "plugins/cdfy_career_poker_plugin.wasm"
-
-  def start(room_id) do
+  def start(opts) do
     case DynamicSupervisor.start_child(
            CdfyRoomServer.RoomSupervisor,
-           {__MODULE__, [room_id: room_id]}
+           {__MODULE__, opts}
          ) do
       {:ok, _pid} ->
-        Logger.info("Started game server #{inspect(room_id)}")
+        Logger.info("Started game server #{inspect(opts)}")
         {:ok, :initiated}
 
       :ignore ->
-        Logger.info("Game server #{inspect(room_id)} already running. Returning error")
+        Logger.info("Game server #{inspect(opts)} already running. Returning error")
         {:error, :already_exists}
     end
   end
 
   def child_spec(opts) do
+    IO.inspect(opts)
     room_id = Keyword.fetch!(opts, :room_id)
+    plugin = Keyword.fetch!(opts, :plugin)
 
     %{
       id: "room_#{room_id}",
-      start: {__MODULE__, :start_link, [room_id]},
-      shutdown: 10_000,
+      start: {__MODULE__, :start_link, [room_id, plugin]},
+      shutdown: 3600_000,
       restart: :transient
     }
   end
 
-  def start_link(room_id) do
+  def start_link(room_id, plugin) do
     name = {:via, Registry, {CdfyRoomServer.RoomRegistry, room_id}}
 
-    case GenServer.start_link(__MODULE__, %{room_id: room_id}, name: name) do
+    case GenServer.start_link(__MODULE__, %{room_id: room_id, plugin: plugin}, name: name) do
       {:ok, pid} ->
         {:ok, pid}
 
@@ -45,18 +45,30 @@ defmodule CdfyRoomServer.Room do
     end
   end
 
-  def init(%{room_id: room_id}) do
-    {:ok,
-     %{
-       room_id: room_id,
-       # PID to player_id
-       player_ids: %{},
-       plugin: nil,
-       pids: []
-     }}
+  @impl true
+  def init(%{room_id: room_id, plugin: plugin}) do
+    Logger.info("download wasm from: #{plugin.url}")
+    {:ok, plugin} = PluginRunner.new(plugin.url)
+
+    state = %{
+      room_id: room_id,
+      # PID to player_id
+      player_ids: %{},
+      phase: :waiting,
+      plugin: plugin,
+      pids: []
+    }
+
+    {:ok, state}
   end
 
   def via_tuple(room_id), do: {:via, Registry, {CdfyRoomServer.RoomRegistry, room_id}}
+
+  def room_states() do
+    DynamicSupervisor.which_children(CdfyRoomServer.RoomSupervisor)
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.map(fn pid -> :sys.get_state(pid) end)
+  end
 
   @spec exists?(room_id :: String.t()) :: boolean()
   def exists?(room_id) do
@@ -102,67 +114,62 @@ defmodule CdfyRoomServer.Room do
     GenServer.call(via_tuple(room_id), :render)
   end
 
-  def handle_call(:load_game, _from, state) do
-    {:ok, plugin} =
-      Extism.Plugin.new(%{wasm: [%{path: @wasm_path}]}, true)
-
-    game_config = %{player_ids: Map.values(state.player_ids)}
-
-    {:ok, _res} =
-      Extism.Plugin.call(plugin, "init_game", Jason.encode!(game_config))
-
-    state = Map.put(state, :plugin, plugin)
-
-    {:reply, :ok, state}
+  @impl true
+  def handle_call(
+        :load_game,
+        _from,
+        %{plugin: plugin, player_ids: player_ids, phase: :waiting} = state
+      ) do
+    player_ids = Map.values(player_ids)
+    res = PluginRunner.init(plugin, player_ids)
+    state = Map.put(state, :phase, :ingame)
+    {:reply, res, state}
   end
 
-  def handle_call({:new_event, event}, _from, %{plugin: plugin} = state) do
-    Logger.info("event: #{inspect(event)}")
+  @impl true
+  def handle_call(:load_game, _from, %{phase: :ingame} = state) do
+    {:reply, {:ok, nil}, state}
+  end
 
-    case Extism.Plugin.call(plugin, "handle_event", Jason.encode!(event)) do
-      {:ok, _res} ->
+  def handle_call({:new_event, event}, _from, %{plugin: plugin, phase: phase} = state) do
+    case phase do
+      :waiting ->
+        {:reply, {:error, :not_loaded}, state}
+
+      :ingame ->
+        Logger.info("event: #{inspect(event)}")
+
+        res = PluginRunner.handle_event(plugin, event)
         state = Map.put(state, :plugin, plugin)
-        {:reply, :ok, state}
-
-      {:error, e} ->
-        state = Map.put(state, :plugin, plugin)
-        {:reply, {:error, e}, state}
+        {:reply, res, state}
     end
   end
 
-  def handle_call(:get_plugin_state, _from, %{plugin: plugin} = state) do
-    if plugin do
-      {:ok, res} =
-        Extism.Plugin.call(plugin, "get_state", Jason.encode!(%{}))
+  def handle_call(:get_plugin_state, _from, %{plugin: plugin, phase: phase} = state) do
+    case phase do
+      :waiting ->
+        {:reply, {:ok, nil}, state}
 
-      res =
-        Jason.decode!(res)
-
-      {:reply, res, state}
-    else
-      {:reply, %{}, state}
+      :ingame ->
+        res = PluginRunner.get_state(plugin)
+        {:reply, res, state}
     end
   end
 
-  def handle_call(:render, {pid, _}, %{plugin: plugin, player_ids: player_ids} = state) do
-    render_config = %{player_id: Map.get(player_ids, pid)}
+  def handle_call(
+        :render,
+        {pid, _},
+        %{plugin: plugin, player_ids: player_ids, phase: phase} = state
+      ) do
+    case phase do
+      :waiting ->
+        {:reply, "", state}
 
-    if plugin do
-      case Extism.Plugin.call(plugin, "render", Jason.encode!(render_config)) do
-        {:ok, html} ->
-          {:reply, html, state}
-
-        {:error, e} ->
-          Logger.error("Error rendering plugin: #{inspect(e)}")
-          {:reply, "", state}
-      end
-    else
-      {:reply, "", state}
+      :ingame ->
+        player_id = Map.get(player_ids, pid)
+        html = PluginRunner.render(plugin, player_id)
+        {:reply, html, state}
     end
-  end
-
-  def handle_call(:get_player_ids, _from, %{player_ids: player_ids} = state) do
-    {:reply, Map.values(player_ids), state}
   end
 
   @impl true
@@ -179,6 +186,7 @@ defmodule CdfyRoomServer.Room do
 
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, _}, %{pids: pids} = state) do
+    Logger.info("Player disconnected: #{inspect(pid)}")
     pids = List.delete(pids, pid)
 
     state =
@@ -187,7 +195,8 @@ defmodule CdfyRoomServer.Room do
       |> Map.put(:player_ids, Map.delete(state.player_ids, pid))
 
     if Enum.empty?(pids) do
-      {:stop, :normal, state}
+      {:noreply, %{state | phase: :waiting}}
+      # {:stop, :normal, state}
     else
       {:noreply, state}
     end
