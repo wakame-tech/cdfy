@@ -38,3 +38,5 @@ npm-debug.log
 plugins/
 
 .elixir_ls/
+
+assets/vendor/heroicons/
