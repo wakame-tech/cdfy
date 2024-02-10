@@ -86,7 +86,7 @@ defmodule CdfyRoomServer.Room do
   end
 
   def new_event(room_id, event) do
-    GenServer.cast(via_tuple(room_id), {:new_event, event})
+    GenServer.call(via_tuple(room_id), {:new_event, event})
   end
 
   # for debug
@@ -116,19 +116,18 @@ defmodule CdfyRoomServer.Room do
     {:reply, :ok, state}
   end
 
-  def handle_cast({:new_event, event}, %{plugin: plugin} = state) do
+  def handle_call({:new_event, event}, _from, %{plugin: plugin} = state) do
     Logger.info("event: #{inspect(event)}")
+
     case Extism.Plugin.call(plugin, "handle_event", Jason.encode!(event)) do
       {:ok, _res} ->
-        :ok
+        state = Map.put(state, :plugin, plugin)
+        {:reply, :ok, state}
 
       {:error, e} ->
-        Logger.error("Error handling event: #{inspect(e)}")
+        state = Map.put(state, :plugin, plugin)
+        {:reply, {:error, e}, state}
     end
-
-    state = Map.put(state, :plugin, plugin)
-
-    {:noreply, state}
   end
 
   def handle_call(:get_plugin_state, _from, %{plugin: plugin} = state) do
@@ -138,7 +137,6 @@ defmodule CdfyRoomServer.Room do
 
       res =
         Jason.decode!(res)
-        |> IO.inspect()
 
       {:reply, res, state}
     else
@@ -148,6 +146,7 @@ defmodule CdfyRoomServer.Room do
 
   def handle_call(:render, {pid, _}, %{plugin: plugin, player_ids: player_ids} = state) do
     render_config = %{player_id: Map.get(player_ids, pid)}
+
     if plugin do
       case Extism.Plugin.call(plugin, "render", Jason.encode!(render_config)) do
         {:ok, html} ->
@@ -169,16 +168,21 @@ defmodule CdfyRoomServer.Room do
   @impl true
   def handle_cast({:monitor, player_id, pid}, %{pids: pids} = state) do
     Process.monitor(pid)
-    state = state
+
+    state =
+      state
       |> Map.put(:pids, Enum.concat([pid], pids))
       |> Map.put(:player_ids, Map.put(state.player_ids, pid, player_id))
+
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, _}, %{pids: pids} = state) do
     pids = List.delete(pids, pid)
-    state = state
+
+    state =
+      state
       |> Map.put(:pids, pids)
       |> Map.put(:player_ids, Map.delete(state.player_ids, pid))
 
