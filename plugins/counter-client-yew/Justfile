@@ -1,5 +1,0 @@
-dev:
-    trunk serve --port 3030 --open
-
-build:
-    trunk build --release
