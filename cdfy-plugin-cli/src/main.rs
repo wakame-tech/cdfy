@@ -1,91 +1,72 @@
 use anyhow::Result;
+use api::plugin::{CreatePlugin, Plugin};
 use clap::Parser;
-use minio::s3::args::{GetObjectArgs, PutObjectArgs};
-use minio::s3::client::Client;
-use minio::s3::creds::StaticProvider;
-use minio::s3::http::BaseUrl;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
-use std::path::PathBuf;
+
+mod api;
 
 #[derive(Debug, clap::Parser)]
 enum Cli {
-    Upload(UploadArgs),
-    Download(DownloadArgs),
+    List,
+    Create(CreateArgs),
+    Delete(DeleteArgs),
 }
 
 #[derive(Debug, clap::Parser)]
-struct UploadArgs {
+struct CreateArgs {
     #[arg(long)]
-    name: String,
+    author: String,
     #[arg(long)]
-    path: PathBuf,
+    repo: String,
+    #[arg(long)]
+    version: String,
+}
+
+impl CreateArgs {
+    pub fn github_release_url(&self) -> String {
+        format!(
+            "https://github.com/{}/{}/releases/download/v{}/{}.wasm",
+            self.author, self.repo, self.version, self.repo
+        )
+    }
 }
 
 #[derive(Debug, clap::Parser)]
-struct DownloadArgs {
+struct DeleteArgs {
     #[arg(long)]
-    name: String,
-    #[arg(long)]
-    path: PathBuf,
+    id: String,
 }
 
-struct S3PluginUploader {
-    client: Client,
-}
-
-impl S3PluginUploader {
-    const BUCKET_NAME: &'static str = "plugins";
-
-    pub fn new(url: &str) -> Result<Self> {
-        let access_key = std::env::var("S3_ACCESS_KEY")?;
-        let secret_key = std::env::var("S3_SECRET_KEY")?;
-        let provider = StaticProvider::new(&access_key, &secret_key, None);
-
-        let base_url = url.parse::<BaseUrl>()?;
-        let client = Client::new(base_url, Some(Box::new(provider)), None, None)?;
-
-        Ok(Self { client })
-    }
-
-    pub async fn upload(&self, name: &str, path: &PathBuf) -> Result<()> {
-        let mut wasm = File::open(path)?;
-        let size = wasm.metadata()?.len() as usize;
-        let name = format!("{}.wasm", name);
-        let res = self
-            .client
-            .put_object(&mut PutObjectArgs::new(
-                Self::BUCKET_NAME,
-                &name,
-                &mut wasm,
-                Some(size),
-                None,
-            )?)
-            .await?;
-        dbg!(res.location);
-        Ok(())
-    }
-
-    pub async fn download(&self, name: &str, path: PathBuf) -> Result<()> {
-        let mut wasm = OpenOptions::new().write(true).create(true).open(path)?;
-        let name = format!("{}.wasm", name);
-        let res = self
-            .client
-            .get_object(&GetObjectArgs::new(Self::BUCKET_NAME, &name)?)
-            .await?;
-        wasm.write_all(&res.bytes().await?)?;
-        Ok(())
-    }
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let url = "http://localhost:9000";
+fn main() -> Result<()> {
+    let origin = "http://localhost:4000/api";
     let args = Cli::try_parse()?;
-    let uploader = S3PluginUploader::new(url)?;
+    let client = reqwest::blocking::Client::new();
+    let repo = api::Repo::<Plugin, CreatePlugin>::new(&client, origin, "plugins", "plugin");
     match args {
-        Cli::Upload(args) => uploader.upload(&args.name, &args.path).await?,
-        Cli::Download(args) => uploader.download(&args.name, args.path).await?,
+        Cli::List => {
+            let plugins = repo.index()?;
+            for plugin in plugins {
+                println!("{} {} {}", plugin.id, plugin.title, plugin.version);
+            }
+        }
+        Cli::Create(args) => {
+            let wasm_url = args.github_release_url();
+            let res = reqwest::blocking::get(&wasm_url)?;
+            if res.status() == reqwest::StatusCode::NOT_FOUND {
+                anyhow::bail!("Release not found");
+            }
+            println!("{} {}", res.status(), res.url());
+            let plugin = CreatePlugin {
+                title: args.repo,
+                version: args.version,
+                url: wasm_url,
+            };
+            let plugin = repo.create(&plugin)?;
+            println!("{} {} {}", plugin.id, plugin.title, plugin.version);
+        }
+        Cli::Delete(args) => {
+            repo.delete(&args.id)?;
+            println!("Deleted {}", args.id);
+        }
     }
     Ok(())
 }

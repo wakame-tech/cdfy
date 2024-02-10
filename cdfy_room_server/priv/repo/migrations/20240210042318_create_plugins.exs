@@ -12,5 +12,7 @@ defmodule CdfyRoomServer.Repo.Migrations.CreatePlugins do
 
       timestamps(type: :utc_datetime)
     end
+
+    create unique_index(:plugins, [:url])
   end
 end
