@@ -14,8 +14,11 @@ defmodule CdfyRoomServerWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  pipeline :auth, do: plug(AuthPlug)
+
   scope "/", CdfyRoomServerWeb do
     pipe_through(:browser)
+    pipe_through(:auth)
 
     live("/", HomeLive)
     get("/plugins", PluginController, :index)
@@ -25,6 +28,7 @@ defmodule CdfyRoomServerWeb.Router do
 
   scope "/api", CdfyRoomServerWeb do
     pipe_through(:api)
+
     resources("/plugins", Api.PluginController, except: [:new, :edit])
   end
 

@@ -3,7 +3,7 @@
 <p>plugins</p>
 
 <%= for plugin <- @plugins do %>
-    <.link href={~p"/plugins/#{plugin.id}"}>
-        <%= plugin.id %>
-    </.link>
-    <% end %>
+  <.link href={~p"/plugins/#{plugin.id}"}>
+    <%= plugin.id %>
+  </.link>
+<% end %>
