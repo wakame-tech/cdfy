@@ -156,8 +156,12 @@ defmodule Cdfy.Room do
       :ingame ->
         Logger.info("event: #{inspect(event)}")
 
-        res = PluginRunner.handle_event(plugin, event)
-        state = Map.put(state, :plugin, plugin)
+        {res, state} =
+          case PluginRunner.handle_event(plugin, event) do
+            {:ok, status} when status != 0 -> {{:ok, nil}, Map.put(state, :phase, :waiting)}
+            res -> {res, Map.put(state, :plugin, plugin)}
+          end
+
         {:reply, res, state}
     end
   end

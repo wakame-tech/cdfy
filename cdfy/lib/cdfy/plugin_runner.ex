@@ -12,9 +12,11 @@ defmodule Cdfy.PluginRunner do
     # manifest =
     #   %{wasm: [%{url: plugin.url}]}
 
+    # TODO
     manifest = %{
       wasm: [
-        %{path: "plugins/cdfy_career_poker_plugin.wasm"}
+        # %{path: "plugins/cdfy_career_poker_plugin.wasm"}
+        %{path: "plugins/cdfy_template_plugin.wasm"}
       ]
     }
 
@@ -58,8 +60,8 @@ defmodule Cdfy.PluginRunner do
   """
   def handle_event(plugin, event) do
     case Extism.Plugin.call(plugin, "handle_event", Jason.encode!(event)) do
-      {:ok, res} ->
-        res
+      {:ok, status} ->
+        {:ok, :binary.decode_unsigned(status, :little)}
 
       {:error, e} ->
         log_wasm_error(e)
@@ -79,5 +81,9 @@ defmodule Cdfy.PluginRunner do
         log_wasm_error(e)
         {:error, nil}
     end
+  end
+
+  def free(plugin) do
+    Extism.Plugin.free(plugin)
   end
 end
