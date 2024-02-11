@@ -1,9 +1,0 @@
-<.flash_group flash={@flash} />
-
-<p>plugins</p>
-
-<%= for plugin <- @plugins do %>
-    <.link href={~p"/plugins/#{plugin.id}"}>
-        <%= plugin.id %>
-    </.link>
-    <% end %>

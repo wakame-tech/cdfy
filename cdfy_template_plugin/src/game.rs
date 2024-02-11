@@ -13,4 +13,8 @@ impl Game {
     pub fn increment(&mut self) {
         self.count += 1;
     }
+
+    pub fn is_finished(&self) -> bool {
+        self.count >= 10
+    }
 }

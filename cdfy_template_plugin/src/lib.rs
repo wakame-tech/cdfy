@@ -38,8 +38,9 @@ pub fn get_state(_: ()) -> FnResult<Game> {
     Ok(game)
 }
 
+/// when non-zero value is returned, the game will be unloaded
 #[plugin_fn]
-pub fn handle_event(Json(event): Json<LiveEvent>) -> FnResult<()> {
+pub fn handle_event(Json(event): Json<LiveEvent>) -> FnResult<u32> {
     let mut game: Game = var::get("game")?.ok_or(anyhow!("Game not found"))?;
 
     match event.event_name.as_str() {
@@ -49,7 +50,7 @@ pub fn handle_event(Json(event): Json<LiveEvent>) -> FnResult<()> {
         _ => {}
     };
     var::set("game", &game)?;
-    Ok(())
+    Ok(game.is_finished() as u32)
 }
 
 #[plugin_fn]
