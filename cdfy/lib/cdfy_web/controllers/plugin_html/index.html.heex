@@ -1,9 +1,13 @@
 <.flash_group flash={@flash} />
 
-<p>plugins</p>
+<h1 class="text-2xl font-bold">Plugins</h1>
 
 <%= for plugin <- @plugins do %>
-  <.link href={~p"/plugins/#{plugin.id}"}>
-    <%= plugin.id %>
-  </.link>
+  <div>
+    <h2 class="text-xl text-black font-bold">
+      <.link href={~p"/plugins/#{plugin.id}"}>
+        <%= plugin.title %>
+      </.link>
+    </h2>
+  </div>
 <% end %>

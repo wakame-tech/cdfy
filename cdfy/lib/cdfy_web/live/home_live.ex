@@ -36,21 +36,23 @@ defmodule CdfyWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <button class="p-2 bg-blue-700 text-white rounded" phx-click="create_room">Create Room</button>
+    <button class="p-2 bg-blue-700 text-white font-bold rounded" phx-click="create_room">
+      Create Room
+    </button>
 
-    <div class="room-list">
-      <h2>Rooms</h2>
-      <%= for {room_id, player_ids, phase, pids} <- @rooms do %>
-        <div class="room">
-          <.link href={~p"/rooms/#{room_id}"}>
+    <h1 class="text-2xl font-bold">Rooms</h1>
+
+    <%= for {room_id, player_ids, phase, _} <- @rooms do %>
+      <div class="py-2">
+        <h2 class="font-bold text-xl">
+          <a class="underline" href={~p"/rooms/#{room_id}"}>
             <%= room_id %>
-          </.link>
-          <span><%= phase %></span>
-          <span><%= Enum.count(player_ids) %> players</span>
-          <span><%= pids %> pids</span>
-        </div>
-      <% end %>
-    </div>
+          </a>
+        </h2>
+        <span class="text-gray-500"><%= Enum.count(player_ids) %> players</span>
+        <span class="text-orange-500"><%= phase %></span>
+      </div>
+    <% end %>
     """
   end
 end
