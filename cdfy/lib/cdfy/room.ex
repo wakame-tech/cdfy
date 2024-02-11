@@ -93,6 +93,10 @@ defmodule Cdfy.Room do
     GenServer.call(via_tuple(room_id), :load_game)
   end
 
+  def finish_game(room_id) do
+    GenServer.call(via_tuple(room_id), :finish_game)
+  end
+
   def monitor(room_id, player_id) do
     GenServer.cast(via_tuple(room_id), {:monitor, player_id, self()})
   end
@@ -118,17 +122,30 @@ defmodule Cdfy.Room do
   def handle_call(
         :load_game,
         _from,
-        %{plugin: plugin, player_ids: player_ids, phase: :waiting} = state
+        %{plugin: plugin, player_ids: player_ids, phase: phase} = state
       ) do
-    player_ids = Map.values(player_ids)
-    res = PluginRunner.init(plugin, player_ids)
-    state = Map.put(state, :phase, :ingame)
-    {:reply, res, state}
+    case phase do
+      :waiting ->
+        player_ids = Map.values(player_ids)
+        res = PluginRunner.init(plugin, player_ids)
+        state = Map.put(state, :phase, :ingame)
+        {:reply, res, state}
+
+      :ingame ->
+        {:reply, {:ok, nil}, state}
+    end
   end
 
   @impl true
-  def handle_call(:load_game, _from, %{phase: :ingame} = state) do
-    {:reply, {:ok, nil}, state}
+  def handle_call(:finish_game, _from, %{phase: phase} = state) do
+    case phase do
+      :waiting ->
+        {:reply, {:ok, nil}, state}
+
+      :ingame ->
+        state = Map.put(state, :phase, :waiting)
+        {:reply, {:ok, nil}, state}
+    end
   end
 
   def handle_call({:new_event, event}, _from, %{plugin: plugin, phase: phase} = state) do
@@ -143,6 +160,10 @@ defmodule Cdfy.Room do
         state = Map.put(state, :plugin, plugin)
         {:reply, res, state}
     end
+  end
+
+  def handle_call(:state, _from, state) do
+    {:reply, state, state}
   end
 
   def handle_call(:get_plugin_state, _from, %{plugin: plugin, phase: phase} = state) do

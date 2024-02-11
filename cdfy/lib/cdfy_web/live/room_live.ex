@@ -26,8 +26,14 @@ defmodule CdfyWeb.RoomLive do
   end
 
   @impl true
-  def handle_event("load_game", _params, %{assigns: %{room_id: room_id}} = socket) do
-    {:ok, _} = Room.load_game(room_id)
+  def handle_event("load_or_finish_game", _params, %{assigns: %{room_id: room_id}} = socket) do
+    %{phase: phase} = Room.state(room_id)
+
+    case phase do
+      :waiting -> Room.load_game(room_id)
+      :ingame -> Room.finish_game(room_id)
+    end
+
     Room.broadcast_game_state(room_id, socket.assigns.version + 1)
     {:noreply, socket}
   end
@@ -77,18 +83,24 @@ defmodule CdfyWeb.RoomLive do
         false -> {:ok, nil}
       end
 
-    v = Room.render(room_id)
+    html = Room.render(room_id)
+    %{phase: phase} = Room.state(room_id)
     error = Map.get(e, player_id)
-    html = Phoenix.HTML.raw(v)
 
     ~H"""
-    <button class="p-2 bg-red-500 text-white" phx-click="load_game">load</button>
+    <button class="p-2 bg-red-500 text-white font-bold rounded" phx-click="load_or_finish_game">
+      <%= if phase == :waiting do %>
+        start
+      <% else %>
+        finish
+      <% end %>
+    </button>
     <p>player_id: <%= player_id %></p>
     <%= if error != nil do %>
       <p class="text-red-500">error: <%= error %></p>
     <% end %>
 
-    <%= html %>
+    <%= raw(html) %>
 
     <input id="debug" type="checkbox" phx-click="toggle_debug" checked={debug} />
     <label for="debug">debug</label>
