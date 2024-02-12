@@ -20,22 +20,21 @@ defmodule Cdfy.Room do
   end
 
   def child_spec(opts) do
-    IO.inspect(opts)
     room_id = Keyword.fetch!(opts, :room_id)
-    plugin = Keyword.fetch!(opts, :plugin)
 
     %{
-      id: "room_#{room_id}",
-      start: {__MODULE__, :start_link, [room_id, plugin]},
+      id: room_id,
+      start: {__MODULE__, :start_link, [opts]},
       shutdown: 3600_000,
       restart: :transient
     }
   end
 
-  def start_link(room_id, plugin) do
+  def start_link(opts) do
+    room_id = Keyword.fetch!(opts, :room_id)
     name = {:via, Registry, {Cdfy.RoomRegistry, room_id}}
 
-    case GenServer.start_link(__MODULE__, %{room_id: room_id, plugin: plugin}, name: name) do
+    case GenServer.start_link(__MODULE__, opts, name: name) do
       {:ok, pid} ->
         {:ok, pid}
 
@@ -46,16 +45,17 @@ defmodule Cdfy.Room do
   end
 
   @impl true
-  def init(%{room_id: room_id, plugin: plugin_info}) do
-    Logger.info("download wasm from: #{plugin_info.url}")
-    {:ok, plugin} = PluginRunner.new(plugin_info.url)
+  def init(opts) do
+    room_id = Keyword.get(opts, :room_id)
+    packages = Keyword.get(opts, :packages)
+    {:ok, plugin} = PluginRunner.new(Enum.at(packages, 0))
 
     state = %{
       room_id: room_id,
       # PID to player_id
       player_ids: %{},
       phase: :waiting,
-      plugin_info: plugin_info,
+      packages: packages,
       plugin: plugin,
       pids: []
     }

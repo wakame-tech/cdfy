@@ -20,14 +20,14 @@ defmodule CdfyWeb.HomeLive do
   def handle_event("create_room", _params, socket) do
     room_id = Ecto.UUID.generate()
 
-    plugin = %Plugin{
+    package = %Plugin{
       version: "0.0.1",
       title: "cdfy_career_poker_plugin",
       url:
         "https://github.com/wakame-tech/cdfy_career_poker_plugin/releases/download/v0.0.1/cdfy_career_poker_plugin.wasm"
     }
 
-    case Room.start(room_id: room_id, plugin: plugin) do
+    case Room.start(room_id: room_id, packages: [package]) do
       {:ok, :initiated} -> {:noreply, socket}
       {:error, :already_exists} -> {:noreply, socket}
     end

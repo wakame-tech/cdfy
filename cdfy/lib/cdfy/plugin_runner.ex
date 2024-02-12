@@ -8,18 +8,25 @@ defmodule Cdfy.PluginRunner do
   @doc """
   call when a room is created
   """
-  def new(_url) do
-    # manifest =
-    #   %{wasm: [%{url: plugin.url}]}
-
+  def new(package) do
     # TODO
-    manifest = %{
-      wasm: [
-        # %{path: "plugins/cdfy_career_poker_plugin.wasm"}
-        # %{path: "plugins/cdfy_template_plugin.wasm"}
-        %{path: "plugins/cdfy_plugin_janken.wasm"}
-      ]
-    }
+    manifest =
+      case package.title do
+        "cdfy_career_poker_plugin" ->
+          %{
+            wasm: [
+              %{path: "plugins/cdfy_career_poker_plugin.wasm"}
+            ]
+          }
+
+        "cdfy_plugin_janken" ->
+          %{
+            wasm: [%{path: "plugins/cdfy_plugin_janken.wasm"}]
+          }
+
+        _ ->
+          {:error, "not found"}
+      end
 
     Extism.Plugin.new(manifest, true)
   end
