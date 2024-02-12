@@ -16,7 +16,8 @@ defmodule Cdfy.PluginRunner do
     manifest = %{
       wasm: [
         # %{path: "plugins/cdfy_career_poker_plugin.wasm"}
-        %{path: "plugins/cdfy_template_plugin.wasm"}
+        # %{path: "plugins/cdfy_template_plugin.wasm"}
+        %{path: "plugins/cdfy_plugin_janken.wasm"}
       ]
     }
 

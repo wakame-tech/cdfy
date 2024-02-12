@@ -46,15 +46,16 @@ defmodule Cdfy.Room do
   end
 
   @impl true
-  def init(%{room_id: room_id, plugin: plugin}) do
-    Logger.info("download wasm from: #{plugin.url}")
-    {:ok, plugin} = PluginRunner.new(plugin.url)
+  def init(%{room_id: room_id, plugin: plugin_info}) do
+    Logger.info("download wasm from: #{plugin_info.url}")
+    {:ok, plugin} = PluginRunner.new(plugin_info.url)
 
     state = %{
       room_id: room_id,
       # PID to player_id
       player_ids: %{},
       phase: :waiting,
+      plugin_info: plugin_info,
       plugin: plugin,
       pids: []
     }
@@ -89,6 +90,10 @@ defmodule Cdfy.Room do
     PubSub.broadcast(Cdfy.PubSub, "room:#{room_id}", {:version, version})
   end
 
+  def refresh_plugin(room_id) do
+    GenServer.call(via_tuple(room_id), :refresh_plugin)
+  end
+
   def load_game(room_id) do
     GenServer.call(via_tuple(room_id), :load_game)
   end
@@ -116,6 +121,19 @@ defmodule Cdfy.Room do
 
   def render(room_id) do
     GenServer.call(via_tuple(room_id), :render)
+  end
+
+  @impl true
+  def handle_call(:refresh_plugin, _from, %{plugin_info: plugin_info} = state) do
+    Logger.info("refresh plugin #{inspect(plugin_info)}")
+    {:ok, plugin} = PluginRunner.new(plugin_info.url)
+
+    state =
+      state
+      |> Map.put(:plugin, plugin)
+      |> Map.put(:phase, :waiting)
+
+    {:reply, {:ok, nil}, state}
   end
 
   @impl true
@@ -158,8 +176,14 @@ defmodule Cdfy.Room do
 
         {res, state} =
           case PluginRunner.handle_event(plugin, event) do
-            {:ok, status} when status != 0 -> {{:ok, nil}, Map.put(state, :phase, :waiting)}
-            res -> {res, Map.put(state, :plugin, plugin)}
+            {:ok, status} when status != 0 ->
+              Logger.info("game finished status: #{status}")
+              last_game_state = PluginRunner.get_state(plugin)
+              Logger.info("last game_state: #{inspect(last_game_state)}")
+              {{:ok, nil}, Map.put(state, :phase, :waiting)}
+
+            res ->
+              {res, Map.put(state, :plugin, plugin)}
           end
 
         {:reply, res, state}
@@ -220,8 +244,8 @@ defmodule Cdfy.Room do
       |> Map.put(:player_ids, Map.delete(state.player_ids, pid))
 
     if Enum.empty?(pids) do
-      {:noreply, %{state | phase: :waiting}}
-      # {:stop, :normal, state}
+      # {:noreply, %{state | phase: :waiting}}
+      {:stop, :normal, state}
     else
       {:noreply, state}
     end

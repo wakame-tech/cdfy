@@ -45,6 +45,17 @@ defmodule CdfyWeb.RoomLive do
 
   @impl true
   def handle_event(
+        "refresh_plugin",
+        _params,
+        %{assigns: %{room_id: room_id, version: version}} = socket
+      ) do
+    Room.refresh_plugin(room_id)
+    Room.broadcast_game_state(room_id, version + 1)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event(
         message,
         params,
         %{assigns: %{room_id: room_id, player_id: player_id, error: error}} = socket
@@ -105,6 +116,9 @@ defmodule CdfyWeb.RoomLive do
     <input id="debug" type="checkbox" phx-click="toggle_debug" checked={debug} />
     <label for="debug">debug</label>
     <%= if debug do %>
+      <button class="p-2 bg-red-500 text-white font-bold rounded" phx-click="refresh_plugin">
+        refresh_plugin
+      </button>
       <p><%= inspect(state) %></p>
     <% end %>
     """
