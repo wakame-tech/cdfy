@@ -35,9 +35,16 @@ defmodule Mix.Tasks.Cdfy.UploadPlugin do
   def run([plugin_dir]) do
     :ok = Mix.Task.run("app.start")
     plugin = prepare_plugin(plugin_dir)
-    {:ok, _} = Plugins.create_plugin(plugin)
+
+    if Plugins.exists_plugin?(plugin.title) do
+      p = Plugins.get_plugin_by_title(plugin.title)
+      {:ok, _} = Plugins.update_plugin(p, plugin)
+    else
+      {:ok, _} = Plugins.create_plugin(plugin)
+    end
+
     IO.puts("Plugin #{plugin.title} v#{plugin.version} uploaded")
 
-    instantiate_plugin(plugin)
+    # instantiate_plugin(plugin)
   end
 end

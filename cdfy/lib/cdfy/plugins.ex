@@ -16,24 +16,12 @@ defmodule Cdfy.Plugins do
       [%Plugin{}, ...]
 
   """
-  def list_plugins do
+  def list_plugins() do
     Repo.all(Plugin)
   end
 
-  @doc """
-  Gets a single plugin.
+  def exists_plugin?(title), do: Plugin |> where([p], p.title == ^title) |> Repo.exists?()
 
-  Raises `Ecto.NoResultsError` if the Plugin does not exist.
-
-  ## Examples
-
-      iex> get_plugin!(123)
-      %Plugin{}
-
-      iex> get_plugin!(456)
-      ** (Ecto.NoResultsError)
-
-  """
   def get_plugin!(id), do: Repo.get!(Plugin, id)
 
   def get_plugin_by_title(title), do: Plugin |> where([p], p.title == ^title) |> Repo.one()

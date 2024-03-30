@@ -9,20 +9,24 @@ defmodule CdfyWeb.RoomLive do
   def mount(%{"room_id" => room_id}, _session, socket) do
     player_id = socket.id
 
-    if connected?(socket) do
-      PubSub.subscribe(Cdfy.PubSub, "room:#{room_id}")
-      Room.monitor(room_id, player_id)
+    if Room.exists?(room_id) do
+      if connected?(socket) do
+        PubSub.subscribe(Cdfy.PubSub, "room:#{room_id}")
+        Room.monitor(room_id, player_id)
+      end
+
+      socket =
+        socket
+        |> assign(:room_id, room_id)
+        |> assign(:player_id, player_id)
+        |> assign(:error, %{})
+        |> assign(:version, 0)
+        |> assign(:debug, false)
+
+      {:ok, socket}
+    else
+      {:ok, push_redirect(socket, to: "/")}
     end
-
-    socket =
-      socket
-      |> assign(:room_id, room_id)
-      |> assign(:player_id, player_id)
-      |> assign(:error, %{})
-      |> assign(:version, 0)
-      |> assign(:debug, false)
-
-    {:ok, socket}
   end
 
   @impl true

@@ -3,6 +3,7 @@ defmodule Cdfy.Room do
   require Logger
   alias Phoenix.PubSub
   alias Cdfy.PluginRunner
+  alias Cdfy.Plugins
   alias Cdfy.PluginFile
 
   def start(opts) do
@@ -45,16 +46,24 @@ defmodule Cdfy.Room do
     end
   end
 
+  defp cache_plugin(plugin_id) do
+    plugin = Plugins.get_plugin!(plugin_id)
+
+    bin = PluginFile.download(plugin.title)
+    path = "./cache/#{plugin.title}_#{plugin.version}.wasm"
+    File.rm(path)
+    File.write(path, bin)
+    IO.inspect("plugin: #{plugin.title} v#{plugin.version} loaded")
+    path
+  end
+
   @impl true
   def init(opts) do
     room_id = Keyword.get(opts, :room_id)
-    title = Keyword.get(opts, :plugin_title)
-    # plugin = Plugins.get_plugin_by_title(title)
+    plugin_id = Keyword.get(opts, :plugin_id)
+    Logger.info("init room #{room_id} with plugin #{plugin_id}")
 
-    bin = PluginFile.download(title)
-    path = "./cache/#{title}.wasm"
-    File.write(path, bin)
-
+    path = cache_plugin(plugin_id)
     {:ok, plugin} = PluginRunner.new(path)
 
     state = %{
