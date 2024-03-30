@@ -30,6 +30,15 @@ config :cdfy, CdfyWeb.Endpoint,
     tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
   ]
 
+config :ex_aws, :s3, %{
+  access_key_id: System.get_env("AWS_ACCESS_KEY"),
+  secret_access_key: System.get_env("AWS_SECRET"),
+  scheme: "http://",
+  host: "localhost",
+  port: 9000,
+  region: "local"
+}
+
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed

@@ -1,0 +1,16 @@
+version: '3'
+services:
+  minio:
+    image: minio/minio
+    command: -c "/usr/bin/minio server --console-address :9090 /data"
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    environment:
+      - MINIO_ROOT_USER=${AWS_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${AWS_SECRET}
+    entrypoint: sh
+    volumes:
+      - ./data/minio:/data
+volumes:
+  minio:

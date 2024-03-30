@@ -51,7 +51,11 @@ defmodule Cdfy.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:plug_cowboy, "~> 2.5"},
-      {:extism, "1.0.0"}
+      {:extism, "1.0.0"},
+      {:ex_aws, "~> 2.0"},
+      {:ex_aws_s3, "~> 2.0"},
+      {:hackney, "~> 1.16"},
+      {:sweet_xml, "~> 0.7"}
     ]
   end
 
