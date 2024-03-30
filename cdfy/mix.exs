@@ -57,7 +57,8 @@ defmodule Cdfy.MixProject do
       {:ex_aws_s3, "~> 2.0"},
       {:hackney, "~> 1.16"},
       {:sweet_xml, "~> 0.7"},
-      {:toml, "~> 0.7.0"}
+      {:toml, "~> 0.7.0"},
+      {:dialyxir, "~> 1.4", only: [:dev]}
     ]
   end
 

@@ -1,5 +1,5 @@
 defmodule CdfyWeb.Api.PluginJSON do
-  alias Cdfy.Plugin
+  alias Cdfy.Model.Plugin
 
   @doc """
   Renders a list of plugins.

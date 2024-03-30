@@ -1,8 +1,8 @@
 defmodule CdfyWeb.Api.PluginController do
   use CdfyWeb, :controller
 
-  alias Cdfy.Plugins
-  alias Cdfy.Plugin
+  alias Cdfy.Repo.Plugins
+  alias Cdfy.Model.Plugin
 
   action_fallback CdfyWeb.FallbackController
 

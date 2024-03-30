@@ -2,7 +2,7 @@ defmodule CdfyWeb.HomeLive do
   use CdfyWeb, :live_view
   require Logger
   alias Cdfy.Room
-  alias Cdfy.Plugins
+  alias Cdfy.Repo.Plugins
 
   @impl true
   def mount(_params, _session, socket) do

@@ -1,4 +1,4 @@
-defmodule Cdfy.Plugin do
+defmodule Cdfy.Model.Plugin do
   use Ecto.Schema
   import Ecto.Changeset
 

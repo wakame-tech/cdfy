@@ -4,6 +4,7 @@ defmodule CdfyWeb.RoomLive do
 
   alias Cdfy.Room
   alias Phoenix.PubSub
+  alias Cdfy.Plugin.State
 
   @impl true
   def mount(%{"room_id" => room_id}, _session, socket) do
@@ -19,9 +20,8 @@ defmodule CdfyWeb.RoomLive do
         socket
         |> assign(:room_id, room_id)
         |> assign(:player_id, player_id)
-        |> assign(:error, %{})
-        |> assign(:version, 0)
-        |> assign(:debug, false)
+        |> assign(:player_name, String.slice(player_id, 0..6))
+        |> assign(:state, State.new())
 
       {:ok, socket}
     else
@@ -29,102 +29,69 @@ defmodule CdfyWeb.RoomLive do
     end
   end
 
+  defp notify(%{assigns: %{state: state, room_id: room_id}} = socket) do
+    Room.broadcast(room_id, state.version + 1)
+    socket
+  end
+
   @impl true
-  def handle_event("load_or_finish_game", _params, %{assigns: %{room_id: room_id}} = socket) do
-    %{phase: phase} = Room.state(room_id)
+  def handle_event(
+        "load_or_finish_game",
+        _params,
+        %{assigns: %{room_id: room_id}} = socket
+      ) do
+    %{phase: phase} = Room.get_state(room_id)
 
     case phase do
       :waiting -> Room.load_game(room_id)
       :ingame -> Room.finish_game(room_id)
     end
 
-    Room.broadcast_game_state(room_id, socket.assigns.version + 1)
-    {:noreply, socket}
+    {:noreply, socket |> notify()}
   end
 
   @impl true
-  def handle_event("toggle_debug", _params, socket) do
-    {:noreply, assign(socket, debug: not socket.assigns.debug)}
+  def handle_event("toggle_debug", _params, %{assigns: %{state: state}} = socket) do
+    {:noreply, socket |> assign(:state, State.toggle_debug(state))}
   end
 
   @impl true
   def handle_event(
         "refresh_plugin",
         _params,
-        %{assigns: %{room_id: room_id, version: version}} = socket
+        %{assigns: %{room_id: room_id}} = socket
       ) do
     Room.refresh_plugin(room_id)
-    Room.broadcast_game_state(room_id, version + 1)
-    {:noreply, socket}
+    {:noreply, socket |> notify()}
   end
 
   @impl true
   def handle_event(
-        message,
-        params,
-        %{assigns: %{room_id: room_id, player_id: player_id, error: error}} = socket
+        event_name,
+        value,
+        %{assigns: %{room_id: room_id, player_id: player_id, state: state}} = socket
       ) do
-    event =
-      %{
-        player_id: player_id,
-        event_name: message,
-        value: params
-      }
-
-    socket =
-      case Room.new_event(room_id, event) do
-        {:error, e} ->
-          Logger.error("error handling event: #{inspect(e)}")
-          assign(socket, error: Map.put(error, player_id, e))
-
-        _ ->
-          socket
-      end
-
-    Room.broadcast_game_state(room_id, socket.assigns.version + 1)
-    {:noreply, socket}
+    state = State.dispatch_event(state, room_id, player_id, event_name, value)
+    {:noreply, socket |> assign(:state, state) |> notify()}
   end
 
   @impl true
-  def handle_info({:version, version}, socket) do
-    {:noreply, assign(socket, version: version)}
+  def handle_info({:version, version}, %{assigns: %{state: state}} = socket) do
+    {:noreply, assign(socket, state: State.set_version(state, version))}
   end
 
   @impl true
-  def render(%{room_id: room_id, player_id: player_id, error: e, debug: debug} = assigns) do
-    {:ok, state} =
-      case debug do
-        true -> Room.get_plugin_state(room_id)
-        false -> {:ok, nil}
-      end
-
-    html = Room.render(room_id)
-    %{phase: phase} = Room.state(room_id)
-    error = Map.get(e, player_id)
-
+  def render(assigns) do
     ~H"""
-    <button class="p-2 bg-red-500 text-white font-bold rounded" phx-click="load_or_finish_game">
-      <%= if phase == :waiting do %>
-        start
-      <% else %>
-        finish
-      <% end %>
-    </button>
-    <p>player_id: <%= player_id %></p>
-    <%= if error != nil do %>
-      <p class="text-red-500">error: <%= error %></p>
-    <% end %>
+    <p>player_id: <%= @player_id %></p>
 
-    <%= raw(html) %>
-
-    <input id="debug" type="checkbox" phx-click="toggle_debug" checked={debug} />
-    <label for="debug">debug</label>
-    <%= if debug do %>
-      <button class="p-2 bg-red-500 text-white font-bold rounded" phx-click="refresh_plugin">
-        refresh_plugin
-      </button>
-      <p><%= inspect(state) %></p>
-    <% end %>
+    <.live_component
+      module={CdfyWeb.PluginViewComponent}
+      id="plugin_view_component"
+      room_id={@room_id}
+      player_id={@player_id}
+      state={@state}
+    />
     """
   end
 end

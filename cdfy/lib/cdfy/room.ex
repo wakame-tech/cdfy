@@ -2,9 +2,8 @@ defmodule Cdfy.Room do
   use GenServer
   require Logger
   alias Phoenix.PubSub
-  alias Cdfy.PluginRunner
-  alias Cdfy.Plugins
-  alias Cdfy.PluginFile
+  alias Cdfy.Plugin.Caller
+  alias Cdfy.RoomState
 
   def start(opts) do
     case DynamicSupervisor.start_child(
@@ -46,35 +45,12 @@ defmodule Cdfy.Room do
     end
   end
 
-  defp cache_plugin(plugin_id) do
-    plugin = Plugins.get_plugin!(plugin_id)
-
-    bin = PluginFile.download(plugin.title)
-    path = "./cache/#{plugin.title}_#{plugin.version}.wasm"
-    File.rm(path)
-    File.write(path, bin)
-    IO.inspect("plugin: #{plugin.title} v#{plugin.version} loaded")
-    path
-  end
-
   @impl true
-  def init(opts) do
-    room_id = Keyword.get(opts, :room_id)
-    plugin_id = Keyword.get(opts, :plugin_id)
+  def init(room_id: room_id, plugin_id: plugin_id) do
     Logger.info("init room #{room_id} with plugin #{plugin_id}")
 
-    path = cache_plugin(plugin_id)
-    {:ok, plugin} = PluginRunner.new(path)
-
-    state = %{
-      room_id: room_id,
-      # PID to player_id
-      player_ids: %{},
-      phase: :waiting,
-      plugin: plugin,
-      pids: []
-    }
-
+    {:ok, state} = RoomState.new(room_id, plugin_id)
+    {:ok, state} = RoomState.load_plugin(state)
     {:ok, state}
   end
 
@@ -93,7 +69,8 @@ defmodule Cdfy.Room do
     |> Enum.any?()
   end
 
-  def state(room_id) do
+  @spec get_state(room_id :: String.t()) :: map()
+  def get_state(room_id) do
     if exists?(room_id) do
       GenServer.call(via_tuple(room_id), :state)
     else
@@ -101,112 +78,68 @@ defmodule Cdfy.Room do
     end
   end
 
-  def broadcast_game_state(room_id, version) do
+  def handle_call(:state, _from, state) do
+    {:reply, state, state}
+  end
+
+  @spec broadcast(room_id :: String.t(), version :: integer()) :: :ok
+  def broadcast(room_id, version) do
     PubSub.broadcast(Cdfy.PubSub, "room:#{room_id}", {:version, version})
   end
 
+  @spec refresh_plugin(String.t()) :: :ok
   def refresh_plugin(room_id) do
     GenServer.call(via_tuple(room_id), :refresh_plugin)
   end
 
+  def handle_call(:refresh_plugin, _from, state) do
+    {:ok, state} = RoomState.load_plugin(state)
+    {:reply, :ok, state}
+  end
+
+  @spec load_game(String.t()) :: :ok
   def load_game(room_id) do
     GenServer.call(via_tuple(room_id), :load_game)
   end
 
+  def handle_call(:load_game, _from, state) do
+    {:reply, :ok, RoomState.load_game(state)}
+  end
+
+  @spec finish_game(String.t()) :: :ok
   def finish_game(room_id) do
     GenServer.call(via_tuple(room_id), :finish_game)
   end
 
+  def handle_call(:finish_game, _from, state) do
+    {:reply, :ok, state |> RoomState.finish_game()}
+  end
+
+  @spec monitor(String.t(), String.t()) :: :ok
   def monitor(room_id, player_id) do
     GenServer.cast(via_tuple(room_id), {:monitor, player_id, self()})
   end
 
+  def handle_cast({:monitor, player_id, pid}, state) do
+    Process.monitor(pid)
+    {:noreply, state |> RoomState.join(pid, player_id)}
+  end
+
+  @spec new_event(String.t(), map()) :: :ok | {:error, any()}
   def new_event(room_id, event) do
     GenServer.call(via_tuple(room_id), {:new_event, event})
   end
 
-  # for debug
+  def handle_call({:new_event, event}, _from, state) do
+    case RoomState.new_event(state, event) do
+      {:ok, state} -> {:reply, :ok, state}
+      {:error, e} -> {:reply, {:error, e}, state}
+    end
+  end
+
+  @spec get_plugin_state(String.t()) :: {:ok, any()} | {:error, any()}
   def get_plugin_state(room_id) do
     GenServer.call(via_tuple(room_id), :get_plugin_state)
-  end
-
-  def get_player_ids(room_id) do
-    GenServer.call(via_tuple(room_id), :get_player_ids)
-  end
-
-  def render(room_id) do
-    GenServer.call(via_tuple(room_id), :render)
-  end
-
-  @impl true
-  def handle_call(:refresh_plugin, _from, %{plugin_info: plugin_info} = state) do
-    Logger.info("refresh plugin #{inspect(plugin_info)}")
-    {:ok, plugin} = PluginRunner.new(plugin_info.url)
-
-    state =
-      state
-      |> Map.put(:plugin, plugin)
-      |> Map.put(:phase, :waiting)
-
-    {:reply, {:ok, nil}, state}
-  end
-
-  @impl true
-  def handle_call(
-        :load_game,
-        _from,
-        %{plugin: plugin, player_ids: player_ids, phase: phase} = state
-      ) do
-    case phase do
-      :waiting ->
-        player_ids = Map.values(player_ids)
-        res = PluginRunner.init(plugin, player_ids)
-        state = Map.put(state, :phase, :ingame)
-        {:reply, res, state}
-
-      :ingame ->
-        {:reply, {:ok, nil}, state}
-    end
-  end
-
-  @impl true
-  def handle_call(:finish_game, _from, %{phase: phase} = state) do
-    case phase do
-      :waiting ->
-        {:reply, {:ok, nil}, state}
-
-      :ingame ->
-        state = Map.put(state, :phase, :waiting)
-        {:reply, {:ok, nil}, state}
-    end
-  end
-
-  def handle_call({:new_event, event}, _from, %{plugin: plugin, phase: phase} = state) do
-    case phase do
-      :waiting ->
-        {:reply, {:error, :not_loaded}, state}
-
-      :ingame ->
-        Logger.info("event: #{inspect(event)}")
-
-        {res, state} =
-          case PluginRunner.handle_event(plugin, event) do
-            {:ok, status} when status != 0 ->
-              Logger.info("game finished status: #{status}")
-              last_game_state = PluginRunner.get_state(plugin)
-              Logger.info("last game_state: #{inspect(last_game_state)}")
-              {{:ok, nil}, Map.put(state, :phase, :waiting)}
-
-            res ->
-              {res, Map.put(state, :plugin, plugin)}
-          end
-
-        {:reply, res, state}
-    end
-  end
-
-  def handle_call(:state, _from, state) do
-    {:reply, state, state}
   end
 
   def handle_call(:get_plugin_state, _from, %{plugin: plugin, phase: phase} = state) do
@@ -215,50 +148,26 @@ defmodule Cdfy.Room do
         {:reply, {:ok, nil}, state}
 
       :ingame ->
-        res = PluginRunner.get_state(plugin)
+        res = Caller.get_state(plugin)
         {:reply, res, state}
     end
   end
 
-  def handle_call(
-        :render,
-        {pid, _},
-        %{plugin: plugin, player_ids: player_ids, phase: phase} = state
-      ) do
-    case phase do
-      :waiting ->
-        {:reply, "", state}
+  @spec render(String.t()) :: String.t()
+  def render(room_id) do
+    GenServer.call(via_tuple(room_id), :render)
+  end
 
-      :ingame ->
-        player_id = Map.get(player_ids, pid)
-        html = PluginRunner.render(plugin, player_id)
-        {:reply, html, state}
-    end
+  def handle_call(:render, {pid, _}, state) do
+    {:reply, RoomState.render(state, pid), state}
   end
 
   @impl true
-  def handle_cast({:monitor, player_id, pid}, %{pids: pids} = state) do
-    Process.monitor(pid)
-
-    state =
-      state
-      |> Map.put(:pids, Enum.concat([pid], pids))
-      |> Map.put(:player_ids, Map.put(state.player_ids, pid, player_id))
-
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:DOWN, _ref, :process, pid, _}, %{pids: pids} = state) do
+  def handle_info({:DOWN, _ref, :process, pid, _}, state) do
     Logger.info("Player disconnected: #{inspect(pid)}")
-    pids = List.delete(pids, pid)
+    state = RoomState.leave(state, pid)
 
-    state =
-      state
-      |> Map.put(:pids, pids)
-      |> Map.put(:player_ids, Map.delete(state.player_ids, pid))
-
-    if Enum.empty?(pids) do
+    if Enum.empty?(state.player_ids) do
       # {:noreply, %{state | phase: :waiting}}
       {:stop, :normal, state}
     else

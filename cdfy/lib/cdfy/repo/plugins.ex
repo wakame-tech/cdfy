@@ -1,11 +1,11 @@
-defmodule Cdfy.Plugins do
+defmodule Cdfy.Repo.Plugins do
   @moduledoc """
   The Plugins context.
   """
 
   import Ecto.Query, warn: false
   alias Cdfy.Repo
-  alias Cdfy.Plugin
+  alias Cdfy.Model.Plugin
 
   @doc """
   Returns the list of plugins.

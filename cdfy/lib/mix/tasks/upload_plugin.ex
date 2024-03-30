@@ -1,8 +1,8 @@
 defmodule Mix.Tasks.Cdfy.UploadPlugin do
   use Mix.Task
-  alias Cdfy.Plugins
-  alias Cdfy.PluginFile
-  alias Cdfy.PluginRunner
+  alias Cdfy.Repo.Plugins
+  alias Cdfy.Storage
+  alias Cdfy.Plugin.Caller
 
   defp prepare_plugin(plugin_dir) do
     {:ok, cargo_toml} = File.read("#{plugin_dir}/Cargo.toml")
@@ -13,21 +13,21 @@ defmodule Mix.Tasks.Cdfy.UploadPlugin do
     [wasm_path] = Path.wildcard("#{plugin_dir}/target/wasm32-wasi/release/*.wasm")
 
     # upload
-    {:ok, _} = PluginFile.upload(name, wasm_path)
+    {:ok, _} = Storage.upload(name, wasm_path)
 
     %{title: name, version: version, url: name}
   end
 
   defp instantiate_plugin(%{title: name}) do
-    wasm = PluginFile.download(name)
+    wasm = Storage.download(name)
     path = "./cache/#{name}.wasm"
     File.write(path, wasm)
 
     {:ok, plugin} =
-      PluginRunner.new(path)
+      Caller.new(path)
 
-    {:ok, _} = PluginRunner.init(plugin, [])
-    {:ok, state} = PluginRunner.get_state(plugin)
+    :ok = Caller.init(plugin, [])
+    {:ok, state} = Caller.get_state(plugin)
     IO.inspect(state)
   end
 
@@ -45,6 +45,6 @@ defmodule Mix.Tasks.Cdfy.UploadPlugin do
 
     IO.puts("Plugin #{plugin.title} v#{plugin.version} uploaded")
 
-    # instantiate_plugin(plugin)
+    instantiate_plugin(plugin)
   end
 end

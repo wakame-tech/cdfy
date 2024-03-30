@@ -1,4 +1,4 @@
-defmodule Cdfy.PluginRunner do
+defmodule Cdfy.Plugin.Caller do
   require Logger
 
   def log_wasm_error(e) do
@@ -8,6 +8,7 @@ defmodule Cdfy.PluginRunner do
   @doc """
   call when a room is created
   """
+  @spec new(String.t()) :: {:ok, any()} | {:error, any()}
   def new(wasm_path) do
     manifest =
       %{
@@ -22,22 +23,24 @@ defmodule Cdfy.PluginRunner do
   @doc """
   call when the "load" button is clicked
   """
+  @spec init(any(), [String.t()]) :: :ok | :error
   def init(plugin, player_ids) do
     game_config = %{player_ids: player_ids}
 
-    case Extism.Plugin.call(plugin, "init_game", Jason.encode!(game_config)) |> IO.inspect() do
+    case Extism.Plugin.call(plugin, "init_game", Jason.encode!(game_config)) do
       {:ok, _res} ->
-        {:ok, nil}
+        :ok
 
       {:error, e} ->
         log_wasm_error(e)
-        {:error, nil}
+        :error
     end
   end
 
   @doc """
-  call when plugin state is updated
+  call when plugin state is updated, return html
   """
+  @spec render(any(), String.t()) :: String.t()
   def render(plugin, player_id) do
     render_config = %{player_id: player_id}
 
@@ -54,6 +57,7 @@ defmodule Cdfy.PluginRunner do
   @doc """
   call when a player clicks a button
   """
+  @spec handle_event(any(), map()) :: {:ok, integer()} | {:error, String.t()}
   def handle_event(plugin, event) do
     case Extism.Plugin.call(plugin, "handle_event", Jason.encode!(event)) do
       {:ok, status} ->
@@ -68,6 +72,7 @@ defmodule Cdfy.PluginRunner do
   @doc """
   for debugging
   """
+  @spec get_state(any()) :: {:ok, map()} | {:error, nil}
   def get_state(plugin) do
     case Extism.Plugin.call(plugin, "get_state", Jason.encode!(%{})) do
       {:ok, res} ->
@@ -79,6 +84,7 @@ defmodule Cdfy.PluginRunner do
     end
   end
 
+  @spec free(any()) :: :ok
   def free(plugin) do
     Extism.Plugin.free(plugin)
   end

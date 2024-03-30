@@ -1,4 +1,4 @@
-defmodule Cdfy.PluginFile do
+defmodule Cdfy.Storage do
   alias ExAws.S3
 
   @bucket "plugins"
