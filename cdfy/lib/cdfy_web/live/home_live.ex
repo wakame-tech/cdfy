@@ -27,7 +27,11 @@ defmodule CdfyWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.live_component module={CdfyWeb.PluginListComponent} id="plugin_list_component" plugins={@plugins} />
+    <.live_component
+      module={CdfyWeb.PluginListComponent}
+      id="plugin_list_component"
+      plugins={@plugins}
+    />
 
     <h1 class="text-2xl font-bold py-4">Rooms</h1>
     <%= for room <- @rooms do %>

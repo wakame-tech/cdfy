@@ -35,7 +35,12 @@ defmodule Cdfy.PluginsTest do
 
     test "update_plugin/2 with valid data updates the plugin" do
       plugin = plugin_fixture()
-      update_attrs = %{version: "some updated version", title: "some updated title", url: "some updated url"}
+
+      update_attrs = %{
+        version: "some updated version",
+        title: "some updated title",
+        url: "some updated url"
+      }
 
       assert {:ok, %Plugin{} = plugin} = Plugins.update_plugin(plugin, update_attrs)
       assert plugin.version == "some updated version"
