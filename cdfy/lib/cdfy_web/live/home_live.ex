@@ -1,5 +1,4 @@
 defmodule CdfyWeb.HomeLive do
-  alias Cdfy.Plugin
   use CdfyWeb, :live_view
   require Logger
   alias Cdfy.Room
@@ -19,15 +18,9 @@ defmodule CdfyWeb.HomeLive do
   @impl true
   def handle_event("create_room", _params, socket) do
     room_id = Ecto.UUID.generate()
+    title = "cdfy_plugin_janken"
 
-    package = %Plugin{
-      version: "0.0.1",
-      title: "cdfy_career_poker_plugin",
-      url:
-        "https://github.com/wakame-tech/cdfy_career_poker_plugin/releases/download/v0.0.1/cdfy_career_poker_plugin.wasm"
-    }
-
-    case Room.start(room_id: room_id, packages: [package]) do
+    case Room.start(room_id: room_id, plugin_title: title) do
       {:ok, :initiated} -> {:noreply, socket}
       {:error, :already_exists} -> {:noreply, socket}
     end

@@ -36,6 +36,8 @@ defmodule Cdfy.Plugins do
   """
   def get_plugin!(id), do: Repo.get!(Plugin, id)
 
+  def get_plugin_by_title(title), do: Plugin |> where([p], p.title == ^title) |> Repo.one()
+
   @doc """
   Creates a plugin.
 
@@ -51,7 +53,7 @@ defmodule Cdfy.Plugins do
   def create_plugin(attrs \\ %{}) do
     %Plugin{}
     |> Plugin.changeset(attrs)
-    |> Repo.insert()
+    |> Repo.insert(on_conflict: :nothing)
   end
 
   @doc """

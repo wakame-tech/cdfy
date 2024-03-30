@@ -3,6 +3,7 @@ defmodule Cdfy.Room do
   require Logger
   alias Phoenix.PubSub
   alias Cdfy.PluginRunner
+  alias Cdfy.PluginFile
 
   def start(opts) do
     case DynamicSupervisor.start_child(
@@ -47,15 +48,20 @@ defmodule Cdfy.Room do
   @impl true
   def init(opts) do
     room_id = Keyword.get(opts, :room_id)
-    packages = Keyword.get(opts, :packages)
-    {:ok, plugin} = PluginRunner.new(Enum.at(packages, 0))
+    title = Keyword.get(opts, :plugin_title)
+    # plugin = Plugins.get_plugin_by_title(title)
+
+    bin = PluginFile.download(title)
+    path = "./cache/#{title}.wasm"
+    File.write(path, bin)
+
+    {:ok, plugin} = PluginRunner.new(path)
 
     state = %{
       room_id: room_id,
       # PID to player_id
       player_ids: %{},
       phase: :waiting,
-      packages: packages,
       plugin: plugin,
       pids: []
     }

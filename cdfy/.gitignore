@@ -42,3 +42,4 @@ plugins/
 assets/vendor/heroicons/
 
 .env*
+cache/
