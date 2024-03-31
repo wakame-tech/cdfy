@@ -119,13 +119,32 @@ defmodule Cdfy.RoomState do
     case ev do
       "GameFinished" ->
         Logger.info("game finished")
-        set_phase(self, state_id, :waiting)
+        self = set_phase(self, state_id, :waiting)
+
+        {:ok, plugin_state} = Caller.get_state(self.states[state_id].plugin)
+
+        event =
+          %{
+            player_id: state_id,
+            event_name: "plugin_finished",
+            value: plugin_state
+          }
+
+        dispatch_event(self, "", event)
 
       %{"StartPlugin" => %{"plugin_name" => plugin_name}} ->
         Logger.info("start plugin: #{plugin_name}")
         %{id: plugin_id} = Plugins.get_plugin_by_title(plugin_name)
-        {self, _} = load_plugin(self, plugin_id)
-        self
+        {self, state_id} = load_plugin(self, plugin_id)
+
+        event =
+          %{
+            player_id: "",
+            event_name: "plugin_started",
+            value: %{plugin_id: plugin_id, state_id: state_id}
+          }
+
+        dispatch_event(self, "", event)
 
       _ ->
         self
@@ -134,6 +153,8 @@ defmodule Cdfy.RoomState do
 
   @spec dispatch_event(self :: t(), player_id :: String.t(), event :: map()) :: t()
   def dispatch_event(self, player_id, event) do
+    Logger.info("dispatch event: #{inspect(event)}")
+
     Map.to_list(self.states)
     |> Enum.reduce(self, fn {state_id, state}, acc ->
       if state.phase == :waiting do
@@ -144,6 +165,5 @@ defmodule Cdfy.RoomState do
         handle_plugin_event(acc, state_id, ev)
       end
     end)
-    |> IO.inspect()
   end
 end

@@ -38,10 +38,13 @@ defmodule CdfyWeb.RoomLive do
         %{version: version},
         %{assigns: %{room_id: room_id}} = socket
       ) do
+    state = Room.get_state(room_id)
+    Logger.info("room_state: #{inspect(state)}")
+
     socket =
       socket
       |> assign(:version, version)
-      |> assign(:room_state, Room.get_state(room_id))
+      |> assign(:room_state, state)
 
     {:noreply, socket}
   end
@@ -109,8 +112,6 @@ defmodule CdfyWeb.RoomLive do
         value: value
       }
 
-    Logger.info("event: #{inspect(event)}")
-
     :ok = Room.dispatch_event(room_id, player_id, event)
 
     {:noreply, socket |> notify()}
@@ -134,6 +135,7 @@ defmodule CdfyWeb.RoomLive do
 
     <%= for {state_id, state} <- states do %>
       <.live_component
+        version={@version}
         module={CdfyWeb.PluginViewComponent}
         id={state_id}
         state_id={state_id}
