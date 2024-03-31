@@ -19,18 +19,25 @@ defmodule Cdfy.Plugin.State do
     }
   end
 
-  @spec toggle_debug(t()) :: t()
+  @spec toggle_debug(self :: t()) :: t()
   def toggle_debug(self) do
     %{self | debug: not self.debug}
   end
 
-  @spec set_version(t(), integer()) :: t()
+  @spec set_version(self :: t(), version :: integer()) :: t()
   def set_version(self, version) do
     %{self | version: version}
   end
 
-  @spec dispatch_event(t(), String.t(), String.t(), String.t(), map()) :: t()
-  def dispatch_event(self, room_id, player_id, event_name, value) do
+  @spec dispatch_event(
+          self :: t(),
+          room_id :: String.t(),
+          plugin_id :: String.t(),
+          player_id :: String.t(),
+          event_name :: String.t(),
+          value :: map()
+        ) :: t()
+  def dispatch_event(self, room_id, plugin_id, player_id, event_name, value) do
     event =
       %{
         player_id: player_id,
@@ -38,7 +45,7 @@ defmodule Cdfy.Plugin.State do
         value: value
       }
 
-    case Room.new_event(room_id, event) do
+    case Room.new_event(room_id, plugin_id, event) do
       {:error, e} ->
         Logger.error("error handling event: #{inspect(e)}")
         %{self | errors: Map.put(self.errors, player_id, e)}

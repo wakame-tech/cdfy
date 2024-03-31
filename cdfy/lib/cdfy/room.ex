@@ -1,8 +1,6 @@
 defmodule Cdfy.Room do
   use GenServer
   require Logger
-  alias Phoenix.PubSub
-  alias Cdfy.Plugin.Caller
   alias Cdfy.RoomState
 
   def start(opts) do
@@ -46,11 +44,13 @@ defmodule Cdfy.Room do
   end
 
   @impl true
+  @spec init(Keyword.t()) :: {:ok, RoomState.t()}
   def init(room_id: room_id, plugin_id: plugin_id) do
     Logger.info("init room #{room_id} with plugin #{plugin_id}")
 
-    {:ok, state} = RoomState.new(room_id, plugin_id)
-    {:ok, state} = RoomState.load_plugin(state)
+    {:ok, state} = RoomState.new(room_id)
+    {:ok, {state, _}} = RoomState.load_plugin(state, plugin_id)
+
     {:ok, state}
   end
 
@@ -69,7 +69,7 @@ defmodule Cdfy.Room do
     |> Enum.any?()
   end
 
-  @spec get_state(room_id :: String.t()) :: map()
+  @spec get_state(room_id :: String.t()) :: RoomState.t()
   def get_state(room_id) do
     if exists?(room_id) do
       GenServer.call(via_tuple(room_id), :state)
@@ -82,40 +82,54 @@ defmodule Cdfy.Room do
     {:reply, state, state}
   end
 
-  @spec broadcast(room_id :: String.t(), version :: integer()) :: :ok
-  def broadcast(room_id, version) do
-    PubSub.broadcast(Cdfy.PubSub, "room:#{room_id}", {:version, version})
+  @spec get_phase(room_id :: String.t(), state_id :: String.t()) :: atom() | nil
+  def get_phase(room_id, state_id) do
+    get_state(room_id).phases[state_id]
   end
 
-  @spec refresh_plugin(String.t()) :: :ok
-  def refresh_plugin(room_id) do
-    GenServer.call(via_tuple(room_id), :refresh_plugin)
+  @spec load_plugin(room_id :: String.t(), plugin_id :: String.t()) :: {:ok, String.t()}
+  def load_plugin(room_id, plugin_id) do
+    GenServer.call(via_tuple(room_id), {:load_plugin, plugin_id})
   end
 
-  def handle_call(:refresh_plugin, _from, state) do
-    {:ok, state} = RoomState.load_plugin(state)
-    {:reply, :ok, state}
+  def handle_call({:load_plugin, plugin_id}, _from, state) do
+    {:ok, {state, state_id}} = RoomState.load_plugin(state, plugin_id)
+    {:reply, {:ok, state_id}, state}
   end
 
-  @spec load_game(String.t()) :: :ok
-  def load_game(room_id) do
-    GenServer.call(via_tuple(room_id), :load_game)
+  @spec unload_plugin(room_id :: String.t(), state_id :: String.t()) :: :ok
+  def unload_plugin(room_id, state_id) do
+    GenServer.call(via_tuple(room_id), {:unload_plugin, state_id})
   end
 
-  def handle_call(:load_game, _from, state) do
-    {:reply, :ok, RoomState.load_game(state)}
+  def handle_call({:unload_plugin, state_id}, _from, state) do
+    {:reply, :ok, RoomState.unload_plugin(state, state_id)}
   end
 
-  @spec finish_game(String.t()) :: :ok
-  def finish_game(room_id) do
-    GenServer.call(via_tuple(room_id), :finish_game)
+  @spec refresh_plugin(room_id :: String.t(), state_id :: String.t()) :: :ok
+  def refresh_plugin(room_id, state_id) do
+    GenServer.call(via_tuple(room_id), {:refresh_plugin, state_id})
   end
 
-  def handle_call(:finish_game, _from, state) do
-    {:reply, :ok, state |> RoomState.finish_game()}
+  @spec init_game(room_id :: String.t(), plugin_id :: String.t()) :: :ok
+  def init_game(room_id, plugin_id) do
+    GenServer.call(via_tuple(room_id), {:init_game, plugin_id})
   end
 
-  @spec monitor(String.t(), String.t()) :: :ok
+  def handle_call({:init_game, plugin_id}, _from, state) do
+    {:reply, :ok, RoomState.init_game(state, plugin_id)}
+  end
+
+  @spec finish_game(room_id :: String.t(), plugin_id :: String.t()) :: :ok
+  def finish_game(room_id, plugin_id) do
+    GenServer.call(via_tuple(room_id), {:finish_game, plugin_id})
+  end
+
+  def handle_call({:finish_game, plugin_id}, _from, state) do
+    {:reply, :ok, RoomState.finish_game(state, plugin_id)}
+  end
+
+  @spec monitor(room_id :: String.t(), plugin_id :: String.t()) :: :ok
   def monitor(room_id, player_id) do
     GenServer.cast(via_tuple(room_id), {:monitor, player_id, self()})
   end
@@ -125,41 +139,36 @@ defmodule Cdfy.Room do
     {:noreply, state |> RoomState.join(pid, player_id)}
   end
 
-  @spec new_event(String.t(), map()) :: :ok | {:error, any()}
-  def new_event(room_id, event) do
-    GenServer.call(via_tuple(room_id), {:new_event, event})
+  @spec new_event(room_id :: String.t(), plugin_id :: String.t(), event :: map()) ::
+          :ok | {:error, any()}
+  def new_event(room_id, plugin_id, event) do
+    GenServer.call(via_tuple(room_id), {:new_event, plugin_id, event})
   end
 
-  def handle_call({:new_event, event}, _from, state) do
-    case RoomState.new_event(state, event) do
+  def handle_call({:new_event, plugin_id, event}, _from, state) do
+    case RoomState.new_event(state, plugin_id, event) do
       {:ok, state} -> {:reply, :ok, state}
       {:error, e} -> {:reply, {:error, e}, state}
     end
   end
 
-  @spec get_plugin_state(String.t()) :: {:ok, any()} | {:error, any()}
-  def get_plugin_state(room_id) do
-    GenServer.call(via_tuple(room_id), :get_plugin_state)
+  @spec get_plugin_state(room_id :: String.t(), state_id :: String.t()) ::
+          {:ok, map()} | {:error, nil}
+  def get_plugin_state(room_id, state_id) do
+    GenServer.call(via_tuple(room_id), {:get_plugin_state, state_id})
   end
 
-  def handle_call(:get_plugin_state, _from, %{plugin: plugin, phase: phase} = state) do
-    case phase do
-      :waiting ->
-        {:reply, {:ok, nil}, state}
-
-      :ingame ->
-        res = Caller.get_state(plugin)
-        {:reply, res, state}
-    end
+  def handle_call({:get_plugin_state, state_id}, _from, state) do
+    {:reply, RoomState.get_plugin_state(state, state_id), state}
   end
 
-  @spec render(String.t()) :: String.t()
-  def render(room_id) do
-    GenServer.call(via_tuple(room_id), :render)
+  @spec render(room_id :: String.t(), plugin_id :: String.t()) :: String.t()
+  def render(room_id, plugin_id) do
+    GenServer.call(via_tuple(room_id), {:render, plugin_id})
   end
 
-  def handle_call(:render, {pid, _}, state) do
-    {:reply, RoomState.render(state, pid), state}
+  def handle_call({:render, plugin_id}, {pid, _}, state) do
+    {:reply, RoomState.render(state, plugin_id, pid), state}
   end
 
   @impl true
