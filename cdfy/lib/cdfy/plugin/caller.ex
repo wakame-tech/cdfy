@@ -57,11 +57,12 @@ defmodule Cdfy.Plugin.Caller do
   @doc """
   call when a player clicks a button
   """
-  @spec handle_event(any(), map()) :: {:ok, integer()} | {:error, String.t()}
+  @spec handle_event(any(), map()) :: {:ok, map() | String.t()} | {:error, String.t()}
   def handle_event(plugin, event) do
     case Extism.Plugin.call(plugin, "handle_event", Jason.encode!(event)) do
-      {:ok, status} ->
-        {:ok, :binary.decode_unsigned(status, :little)}
+      {:ok, plugin_event} ->
+        plugin_event = Jason.decode!(plugin_event)
+        {:ok, plugin_event}
 
       {:error, e} ->
         log_wasm_error(e)

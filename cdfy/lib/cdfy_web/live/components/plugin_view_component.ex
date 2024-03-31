@@ -21,7 +21,6 @@ defmodule CdfyWeb.PluginViewComponent do
 
     ~H"""
     <div class="p-2 border border-2 rounded">
-      <p>version: <%= state.version %></p>
       <p>state_id: <%= state_id %></p>
       <button
         class="px-2 py-1 bg-red-500 text-white font-bold rounded"

@@ -2,16 +2,15 @@ defmodule Cdfy.RoomState do
   alias Cdfy.Repo.Plugins
   alias Cdfy.Storage
   alias Cdfy.Plugin.Caller
+  alias Cdfy.Plugin.State
   require Logger
 
-  defstruct [:room_id, :player_ids, :plugin_ids, :phases, :plugins]
+  defstruct [:room_id, :player_ids, :states]
 
   @type t :: %__MODULE__{
           room_id: String.t(),
           player_ids: map(),
-          plugin_ids: map(),
-          phases: map(),
-          plugins: map()
+          states: map()
         }
 
   @spec cache_plugin(plugin_id :: String.t()) :: String.t()
@@ -25,82 +24,54 @@ defmodule Cdfy.RoomState do
     path
   end
 
-  @spec new(room_id :: String.t()) :: {:ok, t()}
+  @spec new(room_id :: String.t()) :: t()
   def new(room_id) do
-    state = %__MODULE__{
+    %__MODULE__{
       room_id: room_id,
       player_ids: %{},
-      plugin_ids: %{},
-      phases: %{},
-      plugins: %{}
+      states: %{}
     }
-
-    {:ok, state}
   end
 
   @spec get_plugin_state(self :: t(), state_id :: String.t()) :: {:ok, map()} | {:error, nil}
   def get_plugin_state(self, state_id) do
-    case self.phases[state_id] do
-      :waiting ->
-        {:ok, %{}}
+    self.states[state_id] |> State.get_plugin_state()
+  end
 
-      :ingame ->
-        plugin = self.plugins[state_id]
-        Caller.get_state(plugin)
+  @spec get_phase(self :: t(), state_id :: String.t()) :: atom()
+  def get_phase(self, state_id) do
+    self.states[state_id].phase
+  end
 
-      _ ->
-        {:error, nil}
-    end
+  @spec set_phase(self :: t(), state_id :: String.t(), phase :: atom()) :: t()
+  def set_phase(self, state_id, phase) do
+    states = self.states |> Map.put(state_id, self.states[state_id] |> Map.put(:phase, phase))
+    %{self | states: states}
   end
 
   @spec render(self :: t(), state_id :: String.t(), pid :: any()) :: String.t()
   def render(self, state_id, pid) do
-    phase = self.phases[state_id]
-    plugin = self.plugins[state_id]
-
-    case phase do
-      :waiting ->
-        ""
-
-      :ingame ->
-        player_id = Map.get(self.player_ids, pid)
-        Caller.render(plugin, player_id)
-
-      _ ->
-        ""
-    end
+    State.render(self.states[state_id], Map.get(self.player_ids, pid))
   end
 
-  @spec load_plugin(self :: t(), plugin_id :: String.t()) :: {:ok, {t(), String.t()}}
+  @spec load_plugin(self :: t(), plugin_id :: String.t()) :: {t(), String.t()}
   def load_plugin(self, plugin_id) do
     Logger.info("load plugin #{plugin_id}")
     path = cache_plugin(plugin_id)
     state_id = Ecto.UUID.generate()
     {:ok, plugin} = Caller.new(path)
 
-    self =
-      %__MODULE__{
-        self
-        | plugin_ids: Map.put(self.plugin_ids, state_id, plugin_id),
-          plugins: Map.put(self.plugins, state_id, plugin),
-          phases: Map.put(self.phases, state_id, :waiting)
-      }
-
-    {:ok, {self, state_id}}
+    states = self.states |> Map.put(state_id, State.new(plugin_id, plugin))
+    {%{self | states: states}, state_id}
   end
 
   @spec unload_plugin(self :: t(), state_id :: String.t()) :: t()
   def unload_plugin(self, state_id) do
     Logger.info("unload state #{state_id}")
-    plugin = self.plugins[state_id]
+    plugin = self.states[state_id].plugin
     Caller.free(plugin)
 
-    %{
-      self
-      | plugin_ids: Map.delete(self.plugin_ids, state_id),
-        plugins: Map.delete(self.plugins, state_id),
-        phases: Map.delete(self.phases, state_id)
-    }
+    %{self | states: Map.delete(self.states, state_id)}
   end
 
   @spec join(self :: t(), pid :: any(), player_id :: String.t()) :: t()
@@ -118,63 +89,61 @@ defmodule Cdfy.RoomState do
   @spec init_game(self :: t(), state_id :: String.t()) :: t()
   def init_game(self, state_id) do
     Logger.info("init_game #{state_id}")
-    plugin = self.plugins[state_id]
 
-    case self.phases[state_id] do
-      :waiting ->
-        player_ids = Map.values(self.player_ids)
-        :ok = Caller.init(plugin, player_ids)
+    states =
+      Map.put(
+        self.states,
+        state_id,
+        State.init(self.states[state_id], Map.values(self.player_ids))
+      )
 
-        %{
-          self
-          | plugins: Map.put(self.plugins, state_id, plugin),
-            phases: Map.put(self.phases, state_id, :ingame)
-        }
-
-      :ingame ->
-        self
-    end
+    %{self | states: states}
   end
 
   @spec finish_game(self :: t(), state_id :: String.t()) :: t()
   def finish_game(self, state_id) do
     Logger.info("finish_game #{state_id}")
+    states = Map.put(self.states, state_id, State.finish(self.states[state_id]))
+    %{self | states: states}
+  end
 
-    case self.phases[state_id] do
-      :waiting ->
+  @spec toggle_debug(self :: t(), state_id :: String.t()) :: t()
+  def toggle_debug(self, state_id) do
+    Logger.info("toggle_debug #{state_id}")
+    states = Map.put(self.states, state_id, State.toggle_debug(self.states[state_id]))
+    %{self | states: states}
+  end
+
+  @spec handle_plugin_event(self :: t(), state_id :: String.t(), ev :: map()) :: t()
+  def handle_plugin_event(self, state_id, ev) do
+    case ev do
+      "GameFinished" ->
+        Logger.info("game finished")
+        set_phase(self, state_id, :waiting)
+
+      %{"StartPlugin" => %{"plugin_name" => plugin_name}} ->
+        Logger.info("start plugin: #{plugin_name}")
+        %{id: plugin_id} = Plugins.get_plugin_by_title(plugin_name)
+        {self, _} = load_plugin(self, plugin_id)
         self
 
-      :ingame ->
-        %{self | phases: Map.put(self.phases, state_id, :waiting)}
+      _ ->
+        self
     end
   end
 
-  @spec new_event(self :: t(), state_id :: String.t(), event :: map()) ::
-          {:ok, t()} | {:error, any()}
-  def new_event(self, state_id, event) do
-    Logger.info("new_event #{state_id} #{inspect(event)}")
-    plugin = self.plugins[state_id]
-
-    case self.phases[state_id] do
-      :waiting ->
-        {:error, :not_loaded}
-
-      :ingame ->
-        Logger.info("event: #{inspect(event)}")
-
-        state =
-          case Caller.handle_event(plugin, event) do
-            {:ok, status} when status != 0 ->
-              Logger.info("game finished status: #{status}")
-              {:ok, last_game_state} = Caller.get_state(plugin)
-              Logger.info("last game_state: #{inspect(last_game_state)}")
-              %{self | phases: Map.put(self.phases, state_id, :waiting)}
-
-            _ ->
-              %{self | plugins: Map.put(self.plugins, state_id, plugin)}
-          end
-
-        {:ok, state}
-    end
+  @spec dispatch_event(self :: t(), player_id :: String.t(), event :: map()) :: t()
+  def dispatch_event(self, player_id, event) do
+    Map.to_list(self.states)
+    |> Enum.reduce(self, fn {state_id, state}, acc ->
+      if state.phase == :waiting do
+        acc
+      else
+        {:ok, {state, ev}} = State.dispatch_event(state, player_id, event)
+        acc = %{acc | states: Map.put(acc.states, state_id, state)}
+        handle_plugin_event(acc, state_id, ev)
+      end
+    end)
+    |> IO.inspect()
   end
 end

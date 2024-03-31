@@ -48,9 +48,8 @@ defmodule Cdfy.Room do
   def init(room_id: room_id, plugin_id: plugin_id) do
     Logger.info("init room #{room_id} with plugin #{plugin_id}")
 
-    {:ok, state} = RoomState.new(room_id)
-    {:ok, {state, _}} = RoomState.load_plugin(state, plugin_id)
-
+    state = RoomState.new(room_id)
+    {state, _} = RoomState.load_plugin(state, plugin_id)
     {:ok, state}
   end
 
@@ -84,7 +83,7 @@ defmodule Cdfy.Room do
 
   @spec get_phase(room_id :: String.t(), state_id :: String.t()) :: atom() | nil
   def get_phase(room_id, state_id) do
-    get_state(room_id).phases[state_id]
+    get_state(room_id).states[state_id].phase
   end
 
   @spec load_plugin(room_id :: String.t(), plugin_id :: String.t()) :: {:ok, String.t()}
@@ -93,7 +92,7 @@ defmodule Cdfy.Room do
   end
 
   def handle_call({:load_plugin, plugin_id}, _from, state) do
-    {:ok, {state, state_id}} = RoomState.load_plugin(state, plugin_id)
+    {state, state_id} = RoomState.load_plugin(state, plugin_id)
     {:reply, {:ok, state_id}, state}
   end
 
@@ -139,17 +138,24 @@ defmodule Cdfy.Room do
     {:noreply, state |> RoomState.join(pid, player_id)}
   end
 
-  @spec new_event(room_id :: String.t(), plugin_id :: String.t(), event :: map()) ::
-          :ok | {:error, any()}
-  def new_event(room_id, plugin_id, event) do
-    GenServer.call(via_tuple(room_id), {:new_event, plugin_id, event})
+  @spec toggle_debug(room_id :: String.t(), state_id :: String.t()) :: :ok
+  def toggle_debug(room_id, state_id) do
+    GenServer.call(via_tuple(room_id), {:toggle_debug, state_id})
   end
 
-  def handle_call({:new_event, plugin_id, event}, _from, state) do
-    case RoomState.new_event(state, plugin_id, event) do
-      {:ok, state} -> {:reply, :ok, state}
-      {:error, e} -> {:reply, {:error, e}, state}
-    end
+  def handle_call({:toggle_debug, state_id}, _from, state) do
+    state = RoomState.toggle_debug(state, state_id)
+    {:reply, :ok, state}
+  end
+
+  @spec dispatch_event(room_id :: String.t(), player_id :: String.t(), event :: map()) :: :ok
+  def dispatch_event(room_id, player_id, event) do
+    GenServer.call(via_tuple(room_id), {:dispatch_event, player_id, event})
+  end
+
+  def handle_call({:dispatch_event, player_id, event}, _from, state) do
+    state = RoomState.dispatch_event(state, player_id, event)
+    {:reply, :ok, state}
   end
 
   @spec get_plugin_state(room_id :: String.t(), state_id :: String.t()) ::

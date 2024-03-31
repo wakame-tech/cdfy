@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Cdfy.UploadPlugin do
     {:ok, %{"package" => %{"name" => name, "version" => version}}} = Toml.decode(cargo_toml)
 
     # build
-    0 = Mix.Shell.IO.cmd("cd #{plugin_dir} && cargo build --release")
+    0 = Mix.Shell.IO.cmd("cd #{plugin_dir} && cargo build --target wasm32-wasi --release")
     [wasm_path] = Path.wildcard("#{plugin_dir}/target/wasm32-wasi/release/*.wasm")
 
     # upload
