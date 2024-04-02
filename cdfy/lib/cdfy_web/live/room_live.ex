@@ -1,26 +1,26 @@
 defmodule CdfyWeb.RoomLive do
+  alias Phoenix.PubSub
+  alias Cdfy.PluginServer
+  alias Cdfy.RoomServer
   use CdfyWeb, :live_view
   require Logger
-
-  alias Cdfy.Room
-  alias Phoenix.PubSub
 
   @impl true
   def mount(%{"room_id" => room_id}, _session, socket) do
     player_id = socket.id
 
-    if Room.exists?(room_id) do
+    if RoomServer.exists?(room_id) do
       if connected?(socket) do
         PubSub.subscribe(Cdfy.PubSub, "room:#{room_id}")
-        Room.monitor(room_id, player_id)
+        RoomServer.monitor(room_id, player_id)
       end
 
       socket =
         socket
         |> assign(:version, 0)
         |> assign(:room_id, room_id)
-        |> assign(:room_state, Room.get_state(room_id))
         |> assign(:player_id, player_id)
+        |> assign(:state_ids, RoomServer.get_state_ids(room_id))
 
       {:ok, socket}
     else
@@ -38,13 +38,12 @@ defmodule CdfyWeb.RoomLive do
         %{version: version},
         %{assigns: %{room_id: room_id}} = socket
       ) do
-    state = Room.get_state(room_id)
-    Logger.info("room_state: #{inspect(state)}")
+    state_ids = RoomServer.get_state_ids(room_id)
 
     socket =
       socket
       |> assign(:version, version)
-      |> assign(:room_state, state)
+      |> assign(:state_ids, state_ids)
 
     {:noreply, socket}
   end
@@ -55,11 +54,8 @@ defmodule CdfyWeb.RoomLive do
         %{"plugin_id" => plugin_id},
         %{assigns: %{room_id: room_id}} = socket
       ) do
-    {:ok, state_id} =
-      Room.load_plugin(room_id, plugin_id)
-
-    PubSub.subscribe(Cdfy.PubSub, "room:#{room_id}:#{state_id}")
-
+    state_id = Ecto.UUID.generate()
+    :ok = RoomServer.add_plugin(room_id, plugin_id, state_id)
     {:noreply, socket |> notify()}
   end
 
@@ -67,9 +63,9 @@ defmodule CdfyWeb.RoomLive do
   def handle_event(
         "toggle_debug",
         %{"state_id" => state_id},
-        %{assigns: %{room_id: room_id}} = socket
+        socket
       ) do
-    :ok = Room.toggle_debug(room_id, state_id)
+    :ok = PluginServer.toggle_debug(state_id)
     {:noreply, socket |> notify()}
   end
 
@@ -79,8 +75,7 @@ defmodule CdfyWeb.RoomLive do
         %{"state_id" => state_id},
         %{assigns: %{room_id: room_id}} = socket
       ) do
-    :ok = Room.unload_plugin(room_id, state_id)
-    PubSub.unsubscribe(Cdfy.PubSub, "room:#{room_id}:#{state_id}")
+    :ok = RoomServer.unload_plugin(room_id, state_id)
     {:noreply, socket |> notify()}
   end
 
@@ -90,9 +85,13 @@ defmodule CdfyWeb.RoomLive do
         %{"state_id" => state_id},
         %{assigns: %{room_id: room_id}} = socket
       ) do
-    case Room.get_phase(room_id, state_id) do
-      :waiting -> Room.init_game(room_id, state_id)
-      :ingame -> Room.finish_game(room_id, state_id)
+    case PluginServer.get_state(state_id).phase do
+      :waiting ->
+        player_ids = RoomServer.get_player_ids(room_id)
+        PluginServer.init_game(state_id, player_ids)
+
+      :ingame ->
+        PluginServer.finish_game(state_id)
     end
 
     {:noreply, socket |> notify()}
@@ -105,22 +104,20 @@ defmodule CdfyWeb.RoomLive do
         %{assigns: %{room_id: room_id, player_id: player_id}} =
           socket
       ) do
-    event =
+    ev =
       %{
+        room_id: room_id,
         player_id: player_id,
         event_name: event_name,
         value: value
       }
 
-    :ok = Room.dispatch_event(room_id, player_id, event)
-
+    :ok = RoomServer.dispatch_event_all(room_id, ev)
     {:noreply, socket |> notify()}
   end
 
   @impl true
   def render(assigns) do
-    states = assigns.room_state.states
-
     ~H"""
     <p>version: <%= @version %></p>
     <p>player_id: <%= @player_id %></p>
@@ -133,15 +130,13 @@ defmodule CdfyWeb.RoomLive do
       add
     </button>
 
-    <%= for {state_id, state} <- states do %>
+    <%= for state_id <- @state_ids do %>
       <.live_component
         version={@version}
         module={CdfyWeb.PluginViewComponent}
         id={state_id}
-        state_id={state_id}
-        room_id={@room_id}
         player_id={@player_id}
-        state={state}
+        state_id={state_id}
       />
     <% end %>
     """

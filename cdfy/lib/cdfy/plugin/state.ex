@@ -85,19 +85,16 @@ defmodule Cdfy.Plugin.State do
     end
   end
 
-  @spec dispatch_event(
-          self :: t(),
-          player_id :: String.t(),
-          event :: map()
-        ) :: {:ok, {t(), map()}} | {:error, any()}
-  def dispatch_event(self, player_id, event) do
+  @spec dispatch_event(self :: t(), event :: map()) ::
+          {:ok, {t(), map() | String.t()}} | {:error, any()}
+  def dispatch_event(self, event) do
     case Caller.handle_event(self.plugin, event) do
       {:ok, ev} ->
         {:ok, {self, ev}}
 
       {:error, e} ->
         Logger.error("error handling event: #{inspect(e)}")
-        %{self | errors: Map.put(self.errors, player_id, e)}
+        %{self | errors: Map.put(self.errors, event["player_id"], e)}
         {:error, e}
     end
   end

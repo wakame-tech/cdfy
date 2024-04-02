@@ -16,6 +16,8 @@ defmodule Cdfy.Application do
       # {Finch, name: Cdfy.Finch},
       {DynamicSupervisor, [name: Cdfy.RoomSupervisor, strategy: :one_for_one]},
       {Registry, keys: :unique, name: Cdfy.RoomRegistry},
+      {DynamicSupervisor, [name: Cdfy.PluginSupervisor, strategy: :one_for_one]},
+      {Registry, keys: :unique, name: Cdfy.PluginRegistry},
       CdfyWeb.Endpoint
     ]
 
