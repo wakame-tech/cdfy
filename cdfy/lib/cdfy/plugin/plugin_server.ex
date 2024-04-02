@@ -2,7 +2,7 @@ defmodule Cdfy.PluginServer do
   use GenServer
   require Logger
   alias Cdfy.RoomServer
-  alias Cdfy.Plugin.State
+  alias Cdfy.Plugin
   alias Cdfy.Plugin.Caller
   alias Cdfy.Repo.Plugins
   alias Cdfy.Storage
@@ -61,11 +61,11 @@ defmodule Cdfy.PluginServer do
   end
 
   @impl true
-  @spec init(Keyword.t()) :: {:ok, State.t()}
+  @spec init(Keyword.t()) :: {:ok, Plugin.t()}
   def init(plugin_id: plugin_id) do
     path = cache_plugin(plugin_id)
     {:ok, plugin} = Caller.new(path)
-    state = State.new(plugin_id, plugin)
+    state = Plugin.new(plugin)
     {:ok, state}
   end
 
@@ -78,7 +78,7 @@ defmodule Cdfy.PluginServer do
     |> Enum.any?()
   end
 
-  @spec get_state(state_id :: String.t()) :: State.t()
+  @spec get_state(state_id :: String.t()) :: Plugin.t()
   def get_state(state_id) do
     GenServer.call(via_tuple(state_id), :state)
   end
@@ -93,7 +93,7 @@ defmodule Cdfy.PluginServer do
   end
 
   def handle_call({:init_game, player_ids}, _from, state) do
-    {:reply, :ok, State.init(state, player_ids)}
+    {:reply, :ok, Plugin.init(state, player_ids)}
   end
 
   @spec finish_game(state_id :: String.t()) :: :ok
@@ -102,16 +102,7 @@ defmodule Cdfy.PluginServer do
   end
 
   def handle_call(:finish_game, _from, state) do
-    {:reply, :ok, State.finish(state)}
-  end
-
-  @spec toggle_debug(state_id :: String.t()) :: :ok
-  def toggle_debug(state_id) do
-    GenServer.call(via_tuple(state_id), :toggle_debug)
-  end
-
-  def handle_call(:toggle_debug, _from, state) do
-    {:reply, :ok, State.toggle_debug(state)}
+    {:reply, :ok, Plugin.finish(state)}
   end
 
   @spec dispatch_event(state_id :: String.t(), event :: map()) :: :ok
@@ -122,7 +113,7 @@ defmodule Cdfy.PluginServer do
   def handle_call({:dispatch_event, event}, _from, state) do
     if state.phase == :ingame do
       %{room_id: room_id} = event
-      {:ok, {state, ev}} = State.dispatch_event(state, event)
+      {:ok, {state, ev}} = Plugin.dispatch_event(state, event)
 
       state =
         case ev do
@@ -156,7 +147,7 @@ defmodule Cdfy.PluginServer do
   end
 
   def handle_call(:get_plugin_state, _from, state) do
-    {:reply, State.get_plugin_state(state), state}
+    {:reply, Plugin.get_plugin_state(state), state}
   end
 
   @spec render(state_id :: String.t(), player_id :: String.t()) :: String.t()
@@ -165,7 +156,7 @@ defmodule Cdfy.PluginServer do
   end
 
   def handle_call({:render, player_id}, _from, state) do
-    {:reply, State.render(state, player_id), state}
+    {:reply, Plugin.render(state, player_id), state}
   end
 
   @spec stop(state_id :: String.t()) :: :ok

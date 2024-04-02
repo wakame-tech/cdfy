@@ -1,31 +1,22 @@
-defmodule Cdfy.Plugin.State do
+defmodule Cdfy.Plugin do
   alias Cdfy.Plugin.Caller
   require Logger
 
-  defstruct [:plugin_id, :phase, :plugin, :errors, :debug]
+  defstruct [:phase, :plugin, :errors]
 
   @type t :: %__MODULE__{
-          plugin_id: String.t(),
           phase: atom(),
           plugin: any(),
-          errors: map(),
-          debug: boolean()
+          errors: map()
         }
 
-  @spec new(plugin_id :: String.t(), plugin :: any()) :: t()
-  def new(plugin_id, plugin) do
+  @spec new(plugin :: any()) :: t()
+  def new(plugin) do
     %__MODULE__{
-      plugin_id: plugin_id,
       plugin: plugin,
       phase: :waiting,
-      errors: %{},
-      debug: false
+      errors: %{}
     }
-  end
-
-  @spec toggle_debug(self :: t()) :: t()
-  def toggle_debug(self) do
-    %{self | debug: not self.debug}
   end
 
   @spec get_plugin_state(self :: t()) :: {:ok, map()} | {:error, nil}

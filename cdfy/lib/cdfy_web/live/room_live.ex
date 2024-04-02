@@ -21,8 +21,9 @@ defmodule CdfyWeb.RoomLive do
         |> assign(:room_id, room_id)
         |> assign(:player_id, player_id)
         |> assign(:state_ids, RoomServer.get_state_ids(room_id))
+        |> assign(:player_ids, RoomServer.get_player_ids(room_id))
 
-      {:ok, socket}
+      {:ok, socket |> notify()}
     else
       {:ok, push_redirect(socket, to: "/")}
     end
@@ -65,16 +66,8 @@ defmodule CdfyWeb.RoomLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <p>version: <%= @version %></p>
     <p>player_id: <%= @player_id %></p>
-
-    <button
-      class="px-2 py-1 bg-red-500 text-white font-bold rounded"
-      phx-click="load_plugin"
-      phx-value-plugin_id="902d2c13-2a36-4f24-bd0c-99e105111545"
-    >
-      add
-    </button>
+    <p>player_ids: <%= inspect(@player_ids) %></p>
 
     <%= for state_id <- @state_ids do %>
       <%= live_render(@socket, CdfyWeb.PluginLive,

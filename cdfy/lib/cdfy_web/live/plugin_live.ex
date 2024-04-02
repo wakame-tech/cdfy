@@ -7,6 +7,27 @@ defmodule CdfyWeb.PluginLive do
   alias Cdfy.RoomServer
   alias Cdfy.PluginServer
 
+  defp refresh(%{assigns: %{state_id: state_id, player_id: player_id}} = socket) do
+    plugin_state =
+      case PluginServer.get_plugin_state(state_id) do
+        {:ok, state} -> state
+        _ -> nil
+      end
+
+    html = PluginServer.render(state_id, player_id)
+
+    %{errors: errors, phase: phase} =
+      PluginServer.get_state(state_id)
+
+    socket
+    |> assign(
+      error: Map.get(errors, player_id),
+      phase: phase,
+      html: html,
+      plugin_state: plugin_state
+    )
+  end
+
   @impl true
   def mount(
         _params,
@@ -17,15 +38,12 @@ defmodule CdfyWeb.PluginLive do
       socket
       |> assign(
         version: 0,
+        debug: false,
         state_id: state_id,
         room_id: room_id,
-        player_id: player_id,
-        debug: false,
-        error: nil,
-        phase: :waiting,
-        html: "",
-        plugin_state: %{}
+        player_id: player_id
       )
+      |> refresh()
 
     if connected?(socket) do
       PubSub.subscribe(Cdfy.PubSub, "plugin:#{state_id}")
@@ -42,31 +60,9 @@ defmodule CdfyWeb.PluginLive do
   @impl true
   def handle_info(
         %{version: version},
-        %{assigns: %{state_id: state_id, player_id: player_id}} = socket
+        socket
       ) do
-    plugin_state =
-      case PluginServer.get_plugin_state(state_id) do
-        {:ok, state} -> state
-        _ -> nil
-      end
-
-    html = PluginServer.render(state_id, player_id)
-
-    %{debug: debug, errors: errors, phase: phase} =
-      PluginServer.get_state(state_id)
-
-    socket =
-      socket
-      |> assign(
-        version: version,
-        debug: debug,
-        error: Map.get(errors, player_id),
-        phase: phase,
-        html: html,
-        plugin_state: plugin_state
-      )
-
-    {:noreply, socket}
+    {:noreply, socket |> assign(:version, version) |> refresh()}
   end
 
   @impl true
@@ -91,10 +87,9 @@ defmodule CdfyWeb.PluginLive do
   def handle_event(
         "toggle_debug",
         _params,
-        %{state_id: state_id} = socket
+        %{assigns: %{debug: debug}} = socket
       ) do
-    :ok = PluginServer.toggle_debug(state_id)
-    {:noreply, socket |> notify()}
+    {:noreply, socket |> assign(debug: !debug)}
   end
 
   @impl true
@@ -131,7 +126,7 @@ defmodule CdfyWeb.PluginLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="p-2 border border-2 rounded">
+    <div class="my-2 p-2 border border-1 border-gray-400 rounded">
       <p>state_id: <%= @state_id %></p>
       <button
         class="px-2 py-1 bg-red-500 text-white font-bold rounded"
