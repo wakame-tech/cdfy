@@ -5,13 +5,20 @@ defmodule CdfyWeb.RoomLive do
   alias Cdfy.RoomServer
   require Logger
 
+  defp refresh(%{assigns: %{room_id: room_id}} = socket) do
+    state_ids = RoomServer.get_state_ids(room_id)
+    player_ids = RoomServer.get_player_ids(room_id)
+
+    socket |> assign(state_ids: state_ids, player_ids: player_ids)
+  end
+
   @impl true
   def mount(%{"room_id" => room_id}, _session, socket) do
     player_id = socket.id
+    PubSub.subscribe(Cdfy.PubSub, "room:#{room_id}")
 
     if RoomServer.exists?(room_id) do
       if connected?(socket) do
-        PubSub.subscribe(Cdfy.PubSub, "room:#{room_id}")
         RoomServer.monitor(room_id, player_id)
       end
 
@@ -20,10 +27,8 @@ defmodule CdfyWeb.RoomLive do
         |> assign(:version, 0)
         |> assign(:room_id, room_id)
         |> assign(:player_id, player_id)
-        |> assign(:state_ids, RoomServer.get_state_ids(room_id))
-        |> assign(:player_ids, RoomServer.get_player_ids(room_id))
 
-      {:ok, socket |> notify()}
+      {:ok, socket |> refresh() |> notify()}
     else
       {:ok, push_redirect(socket, to: "/")}
     end
@@ -38,18 +43,12 @@ defmodule CdfyWeb.RoomLive do
   def handle_info(:refresh, socket), do: {:noreply, socket |> notify()}
 
   @impl true
-  def handle_info(
-        %{version: version},
-        %{assigns: %{room_id: room_id}} = socket
-      ) do
-    state_ids = RoomServer.get_state_ids(room_id)
-
+  def handle_info(%{version: version}, socket) do
     socket =
       socket
       |> assign(:version, version)
-      |> assign(:state_ids, state_ids)
 
-    {:noreply, socket}
+    {:noreply, socket |> refresh()}
   end
 
   @impl true
@@ -66,6 +65,7 @@ defmodule CdfyWeb.RoomLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <p>version: <%= @version %></p>
     <p>player_id: <%= @player_id %></p>
     <p>player_ids: <%= inspect(@player_ids) %></p>
 

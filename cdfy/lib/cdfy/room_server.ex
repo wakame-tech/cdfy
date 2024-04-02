@@ -1,6 +1,7 @@
 defmodule Cdfy.RoomServer do
   use GenServer
   require Logger
+  alias Phoenix.PubSub
   alias Cdfy.Room
   alias Cdfy.PluginServer
 
@@ -8,8 +9,7 @@ defmodule Cdfy.RoomServer do
     case DynamicSupervisor.start_child(
            Cdfy.RoomSupervisor,
            {__MODULE__, opts}
-         )
-         |> IO.inspect() do
+         ) do
       {:ok, pid} ->
         Logger.info("started room server #{inspect(opts)} #{inspect(pid)}")
         :ok
@@ -120,7 +120,8 @@ defmodule Cdfy.RoomServer do
 
   def handle_cast({:monitor, player_id, pid}, state) do
     Process.monitor(pid)
-    {:noreply, state |> Room.join(pid, player_id)}
+    state = Room.join(state, pid, player_id)
+    {:noreply, state}
   end
 
   @spec dispatch_event_all(room_id :: String.t(), event :: map()) :: :ok
@@ -140,12 +141,11 @@ defmodule Cdfy.RoomServer do
   end
 
   @impl true
-  def handle_info({:DOWN, _ref, :process, pid, _}, state) do
-    Logger.info("Player disconnected: #{inspect(pid)}")
+  def handle_info({:DOWN, _ref, :process, pid, _}, %{room_id: room_id} = state) do
     state = Room.leave(state, pid)
+    PubSub.broadcast(Cdfy.PubSub, "room:#{room_id}", :refresh)
 
     if Enum.empty?(state.player_ids) do
-      # {:noreply, %{state | phase: :waiting}}
       {:stop, :normal, state}
     else
       {:noreply, state}
