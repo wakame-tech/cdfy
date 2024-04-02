@@ -1,8 +1,8 @@
 defmodule CdfyWeb.RoomLive do
-  alias Phoenix.PubSub
-  alias Cdfy.PluginServer
-  alias Cdfy.RoomServer
   use CdfyWeb, :live_view
+
+  alias Phoenix.PubSub
+  alias Cdfy.RoomServer
   require Logger
 
   @impl true
@@ -34,6 +34,9 @@ defmodule CdfyWeb.RoomLive do
   end
 
   @impl true
+  def handle_info(:refresh, socket), do: {:noreply, socket |> notify()}
+
+  @impl true
   def handle_info(
         %{version: version},
         %{assigns: %{room_id: room_id}} = socket
@@ -60,63 +63,6 @@ defmodule CdfyWeb.RoomLive do
   end
 
   @impl true
-  def handle_event(
-        "toggle_debug",
-        %{"state_id" => state_id},
-        socket
-      ) do
-    :ok = PluginServer.toggle_debug(state_id)
-    {:noreply, socket |> notify()}
-  end
-
-  @impl true
-  def handle_event(
-        "unload",
-        %{"state_id" => state_id},
-        %{assigns: %{room_id: room_id}} = socket
-      ) do
-    :ok = RoomServer.unload_plugin(room_id, state_id)
-    {:noreply, socket |> notify()}
-  end
-
-  @impl true
-  def handle_event(
-        "init_or_finish_game",
-        %{"state_id" => state_id},
-        %{assigns: %{room_id: room_id}} = socket
-      ) do
-    case PluginServer.get_state(state_id).phase do
-      :waiting ->
-        player_ids = RoomServer.get_player_ids(room_id)
-        PluginServer.init_game(state_id, player_ids)
-
-      :ingame ->
-        PluginServer.finish_game(state_id)
-    end
-
-    {:noreply, socket |> notify()}
-  end
-
-  @impl true
-  def handle_event(
-        event_name,
-        value,
-        %{assigns: %{room_id: room_id, player_id: player_id}} =
-          socket
-      ) do
-    ev =
-      %{
-        room_id: room_id,
-        player_id: player_id,
-        event_name: event_name,
-        value: value
-      }
-
-    :ok = RoomServer.dispatch_event_all(room_id, ev)
-    {:noreply, socket |> notify()}
-  end
-
-  @impl true
   def render(assigns) do
     ~H"""
     <p>version: <%= @version %></p>
@@ -131,13 +77,15 @@ defmodule CdfyWeb.RoomLive do
     </button>
 
     <%= for state_id <- @state_ids do %>
-      <.live_component
-        version={@version}
-        module={CdfyWeb.PluginViewComponent}
-        id={state_id}
-        player_id={@player_id}
-        state_id={state_id}
-      />
+      <%= live_render(@socket, CdfyWeb.PluginLive,
+        router: CdfyWeb.Router,
+        id: state_id,
+        session: %{
+          "room_id" => @room_id,
+          "player_id" => @player_id,
+          "state_id" => state_id
+        }
+      ) %>
     <% end %>
     """
   end

@@ -80,11 +80,7 @@ defmodule Cdfy.PluginServer do
 
   @spec get_state(state_id :: String.t()) :: State.t()
   def get_state(state_id) do
-    if exists?(state_id) do
-      GenServer.call(via_tuple(state_id), :state)
-    else
-      %{state_id: state_id}
-    end
+    GenServer.call(via_tuple(state_id), :state)
   end
 
   def handle_call(:state, _from, state) do
