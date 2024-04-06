@@ -6,6 +6,7 @@ defmodule CdfyWeb.PluginLive do
   alias Phoenix.PubSub
   alias Cdfy.RoomServer
   alias Cdfy.PluginServer
+  alias Cdfy.Event
 
   defp refresh(%{assigns: %{state_id: state_id, player_id: player_id}} = socket) do
     plugin_state =
@@ -110,14 +111,7 @@ defmodule CdfyWeb.PluginLive do
         %{assigns: %{room_id: room_id, state_id: state_id, player_id: player_id}} =
           socket
       ) do
-    ev =
-      %{
-        room_id: room_id,
-        player_id: player_id,
-        event_name: event_name,
-        value: value
-      }
-
+    ev = Event.new(room_id, player_id, event_name, value)
     :ok = PluginServer.dispatch_event(state_id, ev)
     PubSub.local_broadcast(Cdfy.PubSub, "room:#{room_id}", :refresh)
     {:noreply, socket |> notify()}

@@ -6,6 +6,7 @@ defmodule Cdfy.PluginServer do
   alias Cdfy.Plugin.Caller
   alias Cdfy.Repo.Plugins
   alias Cdfy.Storage
+  alias Cdfy.Event
 
   def start(opts) do
     case DynamicSupervisor.start_child(
@@ -105,7 +106,7 @@ defmodule Cdfy.PluginServer do
     {:reply, :ok, Plugin.finish(state)}
   end
 
-  @spec dispatch_event(state_id :: String.t(), event :: map()) :: :ok
+  @spec dispatch_event(state_id :: String.t(), event :: Event.t()) :: :ok
   def dispatch_event(state_id, event) do
     GenServer.call(via_tuple(state_id), {:dispatch_event, event})
   end
@@ -113,10 +114,10 @@ defmodule Cdfy.PluginServer do
   def handle_call({:dispatch_event, event}, _from, state) do
     if state.phase == :ingame do
       %{room_id: room_id} = event
-      {:ok, {state, ev}} = Plugin.dispatch_event(state, event)
+      {:ok, {state, reply}} = Plugin.dispatch_event(state, event)
 
       state =
-        case ev do
+        case reply do
           "None" ->
             state
 

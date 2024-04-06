@@ -1,6 +1,10 @@
 defmodule Cdfy.Plugin.Caller do
   require Logger
 
+  alias Cdfy.Event
+
+  @type reply :: String.t() | map()
+
   def log_wasm_error(e) do
     Logger.error(String.split(e, "\n") |> Enum.join("\n"))
   end
@@ -57,12 +61,13 @@ defmodule Cdfy.Plugin.Caller do
   @doc """
   call when a player clicks a button
   """
-  @spec handle_event(any(), map()) :: {:ok, map() | String.t()} | {:error, String.t()}
+  @spec handle_event(plugin :: any(), event :: Event.t()) ::
+          {:ok, reply()} | {:error, String.t()}
   def handle_event(plugin, event) do
     case Extism.Plugin.call(plugin, "handle_event", Jason.encode!(event)) do
-      {:ok, plugin_event} ->
-        plugin_event = Jason.decode!(plugin_event)
-        {:ok, plugin_event}
+      {:ok, r} ->
+        reply = Jason.decode!(r)
+        {:ok, reply}
 
       {:error, e} ->
         log_wasm_error(e)

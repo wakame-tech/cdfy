@@ -1,5 +1,6 @@
 defmodule Cdfy.Plugin do
   alias Cdfy.Plugin.Caller
+  alias Cdfy.Event
   require Logger
 
   defstruct [:phase, :plugin, :errors]
@@ -76,12 +77,12 @@ defmodule Cdfy.Plugin do
     end
   end
 
-  @spec dispatch_event(self :: t(), event :: map()) ::
-          {:ok, {t(), map() | String.t()}} | {:error, any()}
+  @spec dispatch_event(self :: t(), event :: Event.t()) ::
+          {:ok, {t(), Caller.reply()}} | {:error, any()}
   def dispatch_event(self, %{player_id: player_id} = event) do
     case Caller.handle_event(self.plugin, event) do
-      {:ok, ev} ->
-        {:ok, {self, ev}}
+      {:ok, reply} ->
+        {:ok, {self, reply}}
 
       {:error, e} ->
         Logger.error("error handling event: #{inspect(e)}")
