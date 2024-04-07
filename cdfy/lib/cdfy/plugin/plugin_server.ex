@@ -1,6 +1,8 @@
 defmodule Cdfy.PluginServer do
   use GenServer, restart: :temporary
   require Logger
+  alias Phoenix.PubSub
+  alias Cdfy.PluginServer
   alias Cdfy.RoomServer
   alias Cdfy.Plugin
   alias Cdfy.Plugin.Caller
@@ -125,11 +127,16 @@ defmodule Cdfy.PluginServer do
 
             state
 
+          %{name: "Rpc", value: %{state_id: state_id, event: e}} ->
+            :ok = PluginServer.dispatch_event(room_id, state_id, player_id, e)
+            state
+
           ev ->
             Logger.info("unknown event: #{inspect(ev)}")
             state
         end
 
+      PubSub.broadcast(Cdfy.PubSub, "plugin:#{state_id}", :refresh)
       {:reply, :ok, state}
     else
       {:reply, :ok, state}

@@ -6,7 +6,6 @@ defmodule CdfyWeb.PluginLive do
   alias Phoenix.PubSub
   alias Cdfy.RoomServer
   alias Cdfy.PluginServer
-  alias Cdfy.Event
 
   defp refresh(%{assigns: %{state_id: state_id, player_id: player_id}} = socket) do
     plugin_state =
@@ -57,6 +56,9 @@ defmodule CdfyWeb.PluginLive do
     PubSub.broadcast(Cdfy.PubSub, "plugin:#{state_id}", %{version: version + 1})
     socket
   end
+
+  @impl true
+  def handle_info(:refresh, socket), do: {:noreply, socket |> notify()}
 
   @impl true
   def handle_info(
