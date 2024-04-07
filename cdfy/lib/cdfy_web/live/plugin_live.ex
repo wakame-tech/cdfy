@@ -106,13 +106,24 @@ defmodule CdfyWeb.PluginLive do
 
   @impl true
   def handle_event(
-        event_name,
+        name,
         value,
         %{assigns: %{room_id: room_id, state_id: state_id, player_id: player_id}} =
           socket
       ) do
-    ev = Event.new(room_id, player_id, event_name, value)
-    :ok = PluginServer.dispatch_event(state_id, ev)
+    event =
+      case value do
+        %{"value" => ""} ->
+          %{name: name}
+
+        _ ->
+          %{
+            name: name,
+            value: value
+          }
+      end
+
+    :ok = PluginServer.dispatch_event(room_id, state_id, player_id, event)
     PubSub.local_broadcast(Cdfy.PubSub, "room:#{room_id}", :refresh)
     {:noreply, socket |> notify()}
   end

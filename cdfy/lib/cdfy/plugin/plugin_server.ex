@@ -74,28 +74,55 @@ defmodule Cdfy.PluginServer do
     {:reply, :ok, Plugin.finish(state)}
   end
 
-  @spec dispatch_event(state_id :: String.t(), event :: Event.t()) :: :ok
-  def dispatch_event(state_id, event) do
-    GenServer.call(via_tuple(state_id), {:dispatch_event, event})
+  @spec dispatch_event(
+          room_id :: String.t(),
+          state_id :: String.t(),
+          player_id :: String.t(),
+          event :: Event.t()
+        ) :: :ok
+  def dispatch_event(room_id, state_id, player_id, event) do
+    GenServer.call(via_tuple(state_id), {:dispatch_event, room_id, state_id, player_id, event})
   end
 
-  def handle_call({:dispatch_event, event}, _from, state) do
+  def handle_call({:dispatch_event, room_id, state_id, player_id, event}, _from, state) do
     if state.phase == :ingame do
-      %{room_id: room_id} = event
-      {:ok, {state, reply}} = Plugin.dispatch_event(state, event)
+      Logger.info("dispatch_event: #{room_id} #{state_id} #{player_id} #{inspect(event)}")
+      {:ok, {state, event}} = Plugin.dispatch_event(state, player_id, event)
 
       state =
-        case reply do
-          "None" ->
+        case event do
+          %{name: "None"} ->
             state
 
-          "GameFinished" ->
+          %{name: "Exit"} ->
+            {:ok, plugin_state} = Plugin.get_plugin_state(state)
+
+            event = %{
+              name: "PluginFinished",
+              value: %{
+                state_id: state_id,
+                value: plugin_state
+              }
+            }
+
+            :ok = RoomServer.dispatch_event_all(room_id, state_id, player_id, event)
+
             %{state | phase: :waiting}
 
-          %{"StartPlugin" => %{"plugin_name" => plugin_name}} ->
+          %{name: "LaunchPlugin", value: %{plugin_name: plugin_name}} ->
             %{id: plugin_id} = Plugins.get_plugin_by_title(plugin_name)
             state_id = Ecto.UUID.generate()
             :ok = RoomServer.add_plugin(room_id, plugin_id, state_id)
+
+            event = %{
+              name: "PluginStarted",
+              value: %{
+                state_id: state_id
+              }
+            }
+
+            :ok = RoomServer.dispatch_event_all(room_id, state_id, player_id, event)
+
             state
 
           ev ->

@@ -79,20 +79,28 @@ defmodule Cdfy.RoomServer do
     {:noreply, state}
   end
 
-  @spec dispatch_event_all(room_id :: String.t(), event :: map()) :: :ok
-  def dispatch_event_all(room_id, event) do
-    GenServer.call(via_tuple(room_id), {:dispatch_event_all, event})
+  @spec dispatch_event_all(
+          room_id :: String.t(),
+          state_id :: String.t(),
+          player_id :: String.t(),
+          event :: Event.t()
+        ) ::
+          :ok
+  def dispatch_event_all(room_id, state_id, player_id, event) do
+    GenServer.cast(via_tuple(room_id), {:dispatch_event_all, room_id, state_id, player_id, event})
   end
 
-  def handle_call({:dispatch_event_all, event}, _from, state) do
+  def handle_cast({:dispatch_event_all, room_id, state_id, player_id, event}, state) do
     Logger.info("dispatch_event_all: #{inspect(event)}")
 
     state.state_ids
-    |> Enum.map(fn state_id ->
-      PluginServer.dispatch_event(state_id, event)
+    |> Enum.each(fn s_id ->
+      if s_id != state_id do
+        PluginServer.dispatch_event(room_id, s_id, player_id, event)
+      end
     end)
 
-    {:reply, :ok, state}
+    {:noreply, state}
   end
 
   @impl true

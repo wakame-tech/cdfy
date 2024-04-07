@@ -77,10 +77,10 @@ defmodule Cdfy.Plugin do
     end
   end
 
-  @spec dispatch_event(self :: t(), event :: Event.t()) ::
-          {:ok, {t(), Caller.reply()}} | {:error, any()}
-  def dispatch_event(self, %{player_id: player_id} = event) do
-    case Caller.handle_event(self.plugin, event) do
+  @spec dispatch_event(self :: t(), player_id :: String.t(), event :: Event.t()) ::
+          {:ok, {t(), Event.t()}} | {:error, any()}
+  def dispatch_event(self, player_id, event) do
+    case Caller.handle_event(self.plugin, player_id, event) do
       {:ok, reply} ->
         {:ok, {self, reply}}
 

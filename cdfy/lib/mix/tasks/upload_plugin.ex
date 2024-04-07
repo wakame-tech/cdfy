@@ -27,13 +27,11 @@ defmodule Mix.Tasks.Cdfy.UploadPlugin do
       Caller.new(path)
 
     :ok = Caller.init(plugin, [])
-    {:ok, state} = Caller.get_state(plugin)
-    IO.inspect(state)
   end
 
   @shortdoc "Upload plugin from git repo"
   def run([plugin_dir]) do
-    :ok = Mix.Task.run("app.start")
+    Mix.Task.run("app.start")
     plugin = prepare_plugin(plugin_dir)
 
     if Plugins.exists_plugin?(plugin.title) do
