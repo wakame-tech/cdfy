@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Cdfy.UploadPlugin do
     {:ok, %{"package" => %{"name" => name, "version" => version}}} = Toml.decode(cargo_toml)
 
     # build
-    0 = Mix.Shell.IO.cmd("cd #{plugin_dir} && cargo build --release")
+    0 = Mix.Shell.IO.cmd("cd #{plugin_dir} && cargo build --target wasm32-wasi --release")
     [wasm_path] = Path.wildcard("#{plugin_dir}/target/wasm32-wasi/release/*.wasm")
 
     # upload
@@ -27,13 +27,11 @@ defmodule Mix.Tasks.Cdfy.UploadPlugin do
       Caller.new(path)
 
     :ok = Caller.init(plugin, [])
-    {:ok, state} = Caller.get_state(plugin)
-    IO.inspect(state)
   end
 
   @shortdoc "Upload plugin from git repo"
   def run([plugin_dir]) do
-    :ok = Mix.Task.run("app.start")
+    Mix.Task.run("app.start")
     plugin = prepare_plugin(plugin_dir)
 
     if Plugins.exists_plugin?(plugin.title) do

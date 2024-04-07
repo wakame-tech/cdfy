@@ -14,8 +14,10 @@ defmodule Cdfy.Application do
       {Phoenix.PubSub, name: Cdfy.PubSub},
       # Start the Finch HTTP client for sending emails
       # {Finch, name: Cdfy.Finch},
-      {DynamicSupervisor, [name: Cdfy.RoomSupervisor, strategy: :one_for_one]},
       {Registry, keys: :unique, name: Cdfy.RoomRegistry},
+      {Registry, keys: :unique, name: Cdfy.PluginRegistry},
+      {DynamicSupervisor, [name: Cdfy.RoomSupervisor, strategy: :one_for_one]},
+      {DynamicSupervisor, [name: Cdfy.PluginSupervisor, strategy: :one_for_one]},
       CdfyWeb.Endpoint
     ]
 

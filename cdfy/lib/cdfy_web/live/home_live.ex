@@ -1,14 +1,15 @@
 defmodule CdfyWeb.HomeLive do
+  alias Cdfy.RoomSupervisor
   use CdfyWeb, :live_view
   require Logger
-  alias Cdfy.Room
+  alias Cdfy.RoomServer
   alias Cdfy.Repo.Plugins
 
   @impl true
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:rooms, Room.room_states())
+      |> assign(:rooms, RoomSupervisor.states())
       |> assign(:plugins, Plugins.list_plugins())
 
     {:ok, socket}
@@ -17,11 +18,12 @@ defmodule CdfyWeb.HomeLive do
   @impl true
   def handle_event("select_plugin", %{"id" => plugin_id}, socket) do
     room_id = Ecto.UUID.generate()
+    {:ok, _} = RoomSupervisor.start_child(room_id: room_id)
 
-    case Room.start(room_id: room_id, plugin_id: plugin_id) do
-      {:ok, :initiated} -> {:noreply, push_redirect(socket, to: "/rooms/#{room_id}")}
-      {:error, :already_exists} -> {:noreply, socket}
-    end
+    state_id = Ecto.UUID.generate()
+    :ok = RoomServer.add_plugin(room_id, plugin_id, state_id)
+
+    {:noreply, push_redirect(socket, to: "/rooms/#{room_id}")}
   end
 
   @impl true
@@ -42,7 +44,6 @@ defmodule CdfyWeb.HomeLive do
           </a>
         </h2>
         <span class="text-gray-500"><%= Enum.count(room.player_ids) %> players</span>
-        <span class="text-orange-500"><%= room.phase %></span>
       </div>
     <% end %>
     """
