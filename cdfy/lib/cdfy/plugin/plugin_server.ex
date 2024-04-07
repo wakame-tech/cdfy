@@ -1,5 +1,5 @@
 defmodule Cdfy.PluginServer do
-  use GenServer
+  use GenServer, restart: :temporary
   require Logger
   alias Cdfy.RoomServer
   alias Cdfy.Plugin
@@ -8,46 +8,25 @@ defmodule Cdfy.PluginServer do
   alias Cdfy.Storage
   alias Cdfy.Event
 
-  def start(opts) do
-    case DynamicSupervisor.start_child(
-           Cdfy.PluginSupervisor,
-           {__MODULE__, opts}
-         ) do
-      {:ok, pid} ->
-        Logger.info("started plugin server #{inspect(opts)} #{inspect(pid)}")
-        :ok
-
-      :ignore ->
-        Logger.info("Plugin server #{inspect(opts)} already running. Returning error")
-        {:error, :already_exists}
-    end
-  end
-
-  @impl true
-  def child_spec(opts) do
-    state_id = Keyword.fetch!(opts, :state_id)
-
-    %{
-      id: state_id,
-      start: {__MODULE__, :start_link, [opts]},
-      shutdown: 3600_000,
-      restart: :transient
-    }
-  end
-
-  @impl true
-  def start_link(opts) do
-    state_id = Keyword.fetch!(opts, :state_id)
+  def start_link(args) do
+    Logger.info("PluginServer.start_link #{inspect(args)}")
+    plugin_id = Keyword.fetch!(args, :plugin_id)
+    state_id = Keyword.fetch!(args, :state_id)
     name = {:via, Registry, {Cdfy.PluginRegistry, state_id}}
+    opts = [plugin_id: plugin_id]
 
-    case GenServer.start_link(__MODULE__, [plugin_id: opts[:plugin_id]], name: name) do
-      {:ok, pid} ->
-        {:ok, pid}
+    GenServer.start_link(__MODULE__, opts, name: name)
+  end
 
-      {:error, {:already_started, pid}} ->
-        Logger.info("Already started at #{inspect(pid)}, returning :ignore")
-        :ignore
-    end
+  def via_tuple(state_id), do: {:via, Registry, {Cdfy.PluginRegistry, state_id}}
+
+  @impl true
+  @spec init(Keyword.t()) :: {:ok, Plugin.t()}
+  def init(plugin_id: plugin_id) do
+    path = cache_plugin(plugin_id)
+    {:ok, plugin} = Caller.new(path)
+    state = Plugin.new(plugin)
+    {:ok, state}
   end
 
   @spec cache_plugin(plugin_id :: String.t()) :: String.t()
@@ -60,17 +39,6 @@ defmodule Cdfy.PluginServer do
     Logger.info("plugin: #{plugin.title} v#{plugin.version} @ #{path} loaded")
     path
   end
-
-  @impl true
-  @spec init(Keyword.t()) :: {:ok, Plugin.t()}
-  def init(plugin_id: plugin_id) do
-    path = cache_plugin(plugin_id)
-    {:ok, plugin} = Caller.new(path)
-    state = Plugin.new(plugin)
-    {:ok, state}
-  end
-
-  def via_tuple(state_id), do: {:via, Registry, {Cdfy.PluginRegistry, state_id}}
 
   @spec exists?(state_id :: String.t()) :: boolean()
   def exists?(state_id) do

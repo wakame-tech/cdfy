@@ -54,10 +54,11 @@ defmodule CdfyWeb.RoomLive do
   @impl true
   def handle_event(
         "load_plugin",
-        %{"plugin_id" => plugin_id},
+        _value,
         %{assigns: %{room_id: room_id}} = socket
       ) do
     state_id = Ecto.UUID.generate()
+    plugin_id = "c88bfaf4-654a-425a-a39b-e935cd74380c"
     :ok = RoomServer.add_plugin(room_id, plugin_id, state_id)
     {:noreply, socket |> notify()}
   end
@@ -68,6 +69,8 @@ defmodule CdfyWeb.RoomLive do
     <p>version: <%= @version %></p>
     <p>player_id: <%= @player_id %></p>
     <p>player_ids: <%= inspect(@player_ids) %></p>
+
+    <button phx-click="load_plugin">Add</button>
 
     <%= for state_id <- @state_ids do %>
       <%= live_render(@socket, CdfyWeb.PluginLive,

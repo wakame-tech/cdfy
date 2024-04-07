@@ -9,6 +9,17 @@ defmodule Cdfy.Room do
           state_ids: list(String.t())
         }
 
+  def child_spec(opts) do
+    room_id = Keyword.fetch!(opts, :room_id)
+
+    %{
+      id: room_id,
+      start: {__MODULE__, :start_link, [opts]},
+      shutdown: 3600_000,
+      restart: :transient
+    }
+  end
+
   @spec new(room_id :: String.t()) :: t()
   def new(room_id) do
     %__MODULE__{

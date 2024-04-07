@@ -19,7 +19,7 @@ defmodule Cdfy.MixProject do
   def application do
     [
       mod: {Cdfy.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :observer, :wx]
     ]
   end
 

@@ -1,65 +1,24 @@
 defmodule Cdfy.RoomServer do
-  use GenServer
+  use GenServer, restart: :temporary
   require Logger
+  alias Cdfy.PluginSupervisor
   alias Phoenix.PubSub
   alias Cdfy.Room
   alias Cdfy.PluginServer
 
-  def start(opts) do
-    case DynamicSupervisor.start_child(
-           Cdfy.RoomSupervisor,
-           {__MODULE__, opts}
-         ) do
-      {:ok, pid} ->
-        Logger.info("started room server #{inspect(opts)} #{inspect(pid)}")
-        :ok
-
-      :ignore ->
-        Logger.info("room server #{inspect(opts)} already running. Returning error")
-        {:error, :already_exists}
-    end
-  end
-
-  @impl true
-  def child_spec(opts) do
-    room_id = Keyword.fetch!(opts, :room_id)
-
-    %{
-      id: room_id,
-      start: {__MODULE__, :start_link, [opts]},
-      shutdown: 3600_000,
-      restart: :transient
-    }
-  end
-
-  @impl true
-  def start_link(opts) do
-    room_id = Keyword.fetch!(opts, :room_id)
+  def start_link(room_id: room_id) do
     name = {:via, Registry, {Cdfy.RoomRegistry, room_id}}
-
-    case GenServer.start_link(__MODULE__, opts, name: name) do
-      {:ok, pid} ->
-        {:ok, pid}
-
-      {:error, {:already_started, pid}} ->
-        Logger.info("Already started at #{inspect(pid)}, returning :ignore")
-        :ignore
-    end
-  end
-
-  @impl true
-  @spec init(Keyword.t()) :: {:ok, Room.t()}
-  def init(room_id: room_id) do
-    Logger.info("init room #{room_id}")
-    {:ok, Room.new(room_id)}
+    opts = [room_id: room_id]
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   def via_tuple(room_id), do: {:via, Registry, {Cdfy.RoomRegistry, room_id}}
 
-  def room_states() do
-    DynamicSupervisor.which_children(Cdfy.RoomSupervisor)
-    |> Enum.map(&elem(&1, 1))
-    |> Enum.map(fn pid -> :sys.get_state(pid) end)
+  @impl true
+  @spec init(Keyword.t()) :: {:ok, Room.t()}
+  def init(room_id: room_id) do
+    Logger.info("RoomServer.init #{room_id}")
+    {:ok, Room.new(room_id)}
   end
 
   @spec exists?(room_id :: String.t()) :: boolean()
@@ -90,17 +49,13 @@ defmodule Cdfy.RoomServer do
   @spec add_plugin(room_id :: String.t(), plugin_id :: String.t(), state_id :: String.t()) :: :ok
   def add_plugin(room_id, plugin_id, state_id) do
     Logger.info("add_plugin: #{room_id} #{exists?(room_id)} #{plugin_id} #{state_id}")
-    GenServer.cast(via_tuple(room_id), {:add_plugin, plugin_id, state_id})
+    GenServer.call(via_tuple(room_id), {:add_plugin, plugin_id, state_id})
   end
 
-  def handle_cast({:add_plugin, plugin_id, state_id}, state) do
-    case PluginServer.start(plugin_id: plugin_id, state_id: state_id) do
-      :ok ->
-        {:noreply, %{state | state_ids: state.state_ids ++ [state_id]}}
-
-      {:error, :already_exists} ->
-        {:noreply, state}
-    end
+  def handle_call({:add_plugin, plugin_id, state_id}, _from, state) do
+    args = [plugin_id: plugin_id, state_id: state_id]
+    PluginSupervisor.start_child(args)
+    {:reply, :ok, %{state | state_ids: state.state_ids ++ [state_id]}}
   end
 
   @spec unload_plugin(room_id :: String.t(), state_id :: String.t()) :: :ok
@@ -145,7 +100,13 @@ defmodule Cdfy.RoomServer do
     state = Room.leave(state, pid)
     PubSub.broadcast(Cdfy.PubSub, "room:#{room_id}", :refresh)
 
+    Logger.info(
+      "room=#{room_id} player=#{inspect(pid)} left players=#{inspect(state.player_ids)}"
+    )
+
     if Enum.empty?(state.player_ids) do
+      # FIXME: I don't know how to nest dynamic supervisors
+      Enum.each(state.state_ids, &PluginServer.stop(&1))
       {:stop, :normal, state}
     else
       {:noreply, state}

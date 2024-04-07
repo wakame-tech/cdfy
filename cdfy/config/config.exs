@@ -20,7 +20,8 @@ config :cdfy, CdfyWeb.Endpoint,
     layout: false
   ],
   pubsub_server: Cdfy.PubSub,
-  live_view: [signing_salt: "BBaDIVzp"]
+  live_view: [signing_salt: "BBaDIVzp"],
+  server: true
 
 # Configures the mailer
 #
