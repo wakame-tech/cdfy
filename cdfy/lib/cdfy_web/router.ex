@@ -14,8 +14,6 @@ defmodule CdfyWeb.Router do
     plug(:accepts, ["json"])
   end
 
-  pipeline :auth, do: plug(AuthPlug)
-
   scope "/", CdfyWeb do
     pipe_through(:browser)
     pipe_through(:auth)

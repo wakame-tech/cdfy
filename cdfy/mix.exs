@@ -52,7 +52,6 @@ defmodule Cdfy.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:plug_cowboy, "~> 2.5"},
       {:extism, "1.0.0"},
-      {:auth_plug, "~> 1.5"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:hackney, "~> 1.16"},
