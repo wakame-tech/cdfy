@@ -16,7 +16,6 @@ defmodule CdfyWeb.Router do
 
   scope "/", CdfyWeb do
     pipe_through(:browser)
-    pipe_through(:auth)
 
     live("/", HomeLive)
     get("/plugins", PluginController, :index)
