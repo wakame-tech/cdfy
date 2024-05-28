@@ -54,7 +54,7 @@ defmodule Cdfy.RoomServer do
 
   def handle_call({:add_plugin, plugin_id, state_id}, _from, state) do
     args = [plugin_id: plugin_id, state_id: state_id]
-    PluginSupervisor.start_child(args)
+    {:ok, _} = PluginSupervisor.start_child(args)
     {:reply, :ok, %{state | state_ids: state.state_ids ++ [state_id]}}
   end
 
