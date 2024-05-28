@@ -34,7 +34,7 @@ defmodule Cdfy.PluginServer do
   @spec cache_plugin(plugin_id :: String.t()) :: String.t()
   defp cache_plugin(plugin_id) do
     plugin = Plugins.get_plugin!(plugin_id)
-    bin = Storage.download(plugin.title)
+    bin = Storage.download(plugin.url)
     path = Path.absname("./cache/#{plugin.title}.wasm")
     File.rm(path)
     File.write(path, bin)
