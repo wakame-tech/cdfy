@@ -20,13 +20,6 @@ if System.get_env("PHX_SERVER") do
   config :cdfy, CdfyWeb.Endpoint, server: true
 end
 
-config :ex_aws, :s3, %{
-  scheme: "http://",
-  host: "localhost",
-  port: 9000,
-  region: "local"
-}
-
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
