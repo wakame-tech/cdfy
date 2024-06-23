@@ -115,7 +115,8 @@ defmodule CdfyWeb.PluginLive do
       ) do
     event =
       case value do
-        %{"value" => ""} ->
+        # if event body is empty, value has only one key and it's value is empty string
+        %{"value" => ""} when map_size(value) == 1 ->
           %{name: name}
 
         _ ->
