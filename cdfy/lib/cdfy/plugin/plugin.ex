@@ -86,8 +86,8 @@ defmodule Cdfy.Plugin do
 
       {:error, e} ->
         Logger.error("error handling event: #{inspect(e)}")
-        %{self | errors: Map.put(self.errors, player_id, e)}
-        {:error, e}
+        new_self = %{self | errors: Map.put(self.errors, player_id, e)}
+        {:ok, {new_self, %{name: "None"}}}
     end
   end
 end
