@@ -6,7 +6,8 @@ defmodule CdfyWeb.PluginController do
   action_fallback CdfyWeb.FallbackController
 
   def index(conn, _params) do
-    plugins = Plugins.list_plugins()
+    user_id = conn.assigns.current_user.id
+    plugins = Plugins.list_plugins_by_user(user_id)
     render(conn, :index, plugins: plugins)
   end
 
