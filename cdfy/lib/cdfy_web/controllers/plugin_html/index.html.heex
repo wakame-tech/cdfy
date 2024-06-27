@@ -2,6 +2,8 @@
 
 <h1 class="text-xl font-bold">Plugins</h1>
 
+<.link href={~p"/plugins/new"}>upload</.link>
+
 <%= for plugin <- @plugins do %>
   <div class="flex">
     <.link href={~p"/plugins/#{plugin.id}"}>

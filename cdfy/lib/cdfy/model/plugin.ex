@@ -17,7 +17,7 @@ defmodule Cdfy.Model.Plugin do
   @doc false
   def changeset(plugin, attrs) do
     plugin
-    |> cast(attrs, [:title, :version, :url])
-    |> validate_required([:title, :version, :url])
+    |> cast(attrs, [:title, :version, :url, :user_id])
+    |> validate_required([:title, :version, :url, :user_id])
   end
 end
