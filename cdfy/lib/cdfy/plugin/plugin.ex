@@ -82,7 +82,8 @@ defmodule Cdfy.Plugin do
   def dispatch_event(self, player_id, event) do
     case Caller.handle_event(self.plugin, player_id, event) do
       {:ok, reply} ->
-        {:ok, {self, reply}}
+        new_self = %{self | errors: Map.delete(self.errors, player_id)}
+        {:ok, {new_self, reply}}
 
       {:error, e} ->
         Logger.error("error handling event: #{inspect(e)}")
