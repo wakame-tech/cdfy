@@ -14,4 +14,9 @@ defmodule Cdfy.Storage do
     |> S3.upload(@bucket, name)
     |> ExAws.request()
   end
+
+  def delete(name) do
+    S3.delete_object(@bucket, name)
+    |> ExAws.request()
+  end
 end

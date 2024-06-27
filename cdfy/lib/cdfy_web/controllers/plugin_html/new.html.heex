@@ -1,0 +1,12 @@
+<h1 class="text-xl text-black font-bold">upload plugin</h1>
+
+<.simple_form :let={f} for={@changeset} multipart>
+    <.input field={f[:title]} type="text" label="Name" />
+    <.input field={f[:url]} type="text" label="Url" />
+    <.input field={f[:version]} type="text" label="Version" />
+    <.input field={f[:wasm]} type="file" label="Wasm" />
+
+    <:actions>
+        <.button>Upload</.button>
+    </:actions>
+</.simple_form>

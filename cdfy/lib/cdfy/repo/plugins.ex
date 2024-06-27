@@ -20,6 +20,10 @@ defmodule Cdfy.Repo.Plugins do
     Repo.all(Plugin)
   end
 
+  def list_plugins_by_user(user_id) do
+    Plugin |> where([p], p.user_id == ^user_id) |> Repo.all()
+  end
+
   def exists_plugin?(title), do: Plugin |> where([p], p.title == ^title) |> Repo.exists?()
 
   def get_plugin!(id), do: Repo.get!(Plugin, id)
